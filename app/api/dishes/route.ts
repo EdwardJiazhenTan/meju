@@ -47,6 +47,8 @@ export async function POST(request: NextRequest) {
       url,
       prep_time,
       cook_time,
+      visibility,
+      ingredients,
     } = body;
 
     if (!name || !meal) {
@@ -71,15 +73,25 @@ export async function POST(request: NextRequest) {
       description: description || null,
       calories: calories || null,
       meal,
-      special: special ? 1 : 0,
+      special: special || false,
       url: url || null,
       prep_time: prep_time || null,
       cook_time: cook_time || null,
-      visibility: DEFAULT_VISIBILITY, // Default to private
+      visibility: visibility || DEFAULT_VISIBILITY, // Default to private
     };
 
     const result = dishQueries.createDish(dishData);
     const dishId = result.lastInsertRowid as number;
+    
+    // Add ingredients to the dish if provided
+    if (ingredients && Array.isArray(ingredients)) {
+      for (const ingredient of ingredients) {
+        if (ingredient.ingredient_id && ingredient.quantity > 0) {
+          dishQueries.addIngredientToDish(dishId, ingredient.ingredient_id, ingredient.quantity);
+        }
+      }
+    }
+    
     const newDish = dishQueries.getDishById(dishId);
     return NextResponse.json(
       AuthHelper.createSuccessResponse("Dish created successfully", {
@@ -89,8 +101,10 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error("Error creating dish:", error);
+    console.error("Error details:", error instanceof Error ? error.message : String(error));
+    console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
     return NextResponse.json(
-      AuthHelper.createErrorResponse("Internal server error"),
+      AuthHelper.createErrorResponse(`Internal server error: ${error instanceof Error ? error.message : String(error)}`),
       { status: 500 },
     );
   }

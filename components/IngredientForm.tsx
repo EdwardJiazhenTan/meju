@@ -7,6 +7,7 @@ interface IngredientFormData {
   name: string;
   unit: string;
   category: "vegetable" | "meat" | "dairy" | "grain" | "spice" | "fruit" | "other" | "";
+  calories_per_unit: string;
 }
 
 export default function IngredientForm() {
@@ -14,6 +15,7 @@ export default function IngredientForm() {
     name: '',
     unit: '',
     category: '',
+    calories_per_unit: '',
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -47,6 +49,7 @@ export default function IngredientForm() {
         name: formData.name,
         unit: formData.unit || undefined,
         category: formData.category || undefined,
+        calories_per_unit: formData.calories_per_unit ? parseFloat(formData.calories_per_unit) : undefined,
       };
 
       const response = await ApiClient.createIngredient(ingredientData);
@@ -59,6 +62,7 @@ export default function IngredientForm() {
           name: '',
           unit: '',
           category: '',
+          calories_per_unit: '',
         });
       } else {
         setMessage(response.message || 'Failed to create ingredient');
@@ -74,13 +78,13 @@ export default function IngredientForm() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="bg-white rounded-lg shadow-sm border p-6">
-        <h2 className="text-2xl font-bold text-black mb-6">Create New Ingredient</h2>
+      <div className="bg-card rounded-lg shadow-sm border-border border p-6">
+        <h2 className="text-2xl font-bold text-card-foreground mb-6">Create New Ingredient</h2>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Ingredient Name */}
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-black mb-2">
+            <label htmlFor="name" className="block text-sm font-medium text-card-foreground mb-2">
               Ingredient Name *
             </label>
             <input
@@ -91,13 +95,13 @@ export default function IngredientForm() {
               value={formData.name}
               onChange={handleInputChange}
               placeholder="e.g., Tomato"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-700 text-black"
+              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-input text-foreground placeholder-muted-foreground"
             />
           </div>
 
           {/* Unit */}
           <div>
-            <label htmlFor="unit" className="block text-sm font-medium text-black mb-2">
+            <label htmlFor="unit" className="block text-sm font-medium text-card-foreground mb-2">
               Unit of Measurement
             </label>
             <input
@@ -107,13 +111,13 @@ export default function IngredientForm() {
               value={formData.unit}
               onChange={handleInputChange}
               placeholder="e.g., kg, pieces, cups"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-700 text-black"
+              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-input text-foreground placeholder-muted-foreground"
             />
           </div>
 
           {/* Category */}
           <div>
-            <label htmlFor="category" className="block text-sm font-medium text-black mb-2">
+            <label htmlFor="category" className="block text-sm font-medium text-card-foreground mb-2">
               Category
             </label>
             <select
@@ -121,7 +125,7 @@ export default function IngredientForm() {
               name="category"
               value={formData.category}
               onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-input text-foreground"
             >
               <option value="">Select category</option>
               {categoryOptions.map((option) => (
@@ -130,6 +134,27 @@ export default function IngredientForm() {
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Calories per Unit */}
+          <div>
+            <label htmlFor="calories_per_unit" className="block text-sm font-medium text-card-foreground mb-2">
+              Calories per Unit
+            </label>
+            <input
+              type="number"
+              id="calories_per_unit"
+              name="calories_per_unit"
+              min="0"
+              step="0.1"
+              value={formData.calories_per_unit}
+              onChange={handleInputChange}
+              placeholder="e.g., 150"
+              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-input text-foreground placeholder-muted-foreground"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Calories per unit of measurement (optional)
+            </p>
           </div>
 
           {/* Message */}
@@ -148,7 +173,7 @@ export default function IngredientForm() {
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Creating...' : 'Create Ingredient'}
             </button>

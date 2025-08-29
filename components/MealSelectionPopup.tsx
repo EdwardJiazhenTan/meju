@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { ApiClient } from '@/lib/api';
 
 interface Dish {
@@ -28,11 +29,13 @@ export default function MealSelectionPopup({
   mealType,
   onDishSelected
 }: MealSelectionPopupProps) {
+  const t = useTranslations('mealPlan');
+  const tCommon = useTranslations('common');
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState<number | null>(null);
 
-  const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
   const loadDishes = useCallback(async () => {
     setLoading(true);
@@ -76,21 +79,21 @@ export default function MealSelectionPopup({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-50">
-      <div className="bg-white rounded-t-lg w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col animate-slide-up">
+    <div className="fixed top-0 right-0 h-full w-full max-w-md z-50">
+      <div className="bg-card h-full w-full flex flex-col animate-slide-right shadow-2xl border-l border-border">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center justify-between p-4 border-b border-border">
           <div>
-            <h2 className="text-lg font-semibold text-black">
-              Select {mealType} for {DAYS[dayOfWeek - 1]}
+            <h2 className="text-lg font-semibold text-card-foreground">
+              {t('selectFor')} {t(mealType as keyof any)} {t('for')} {t(DAY_KEYS[dayOfWeek - 1] as keyof any)}
             </h2>
-            <p className="text-sm text-black">
-              Choose from your {mealType} dishes
+            <p className="text-sm text-card-foreground">
+              {t('chooseFrom')} {t(mealType as keyof any)} {t('dishes')}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-black hover:text-black text-xl font-bold w-8 h-8 flex items-center justify-center"
+            className="text-card-foreground hover:text-card-foreground text-xl font-bold w-8 h-8 flex items-center justify-center"
           >
             ×
           </button>
@@ -100,7 +103,7 @@ export default function MealSelectionPopup({
         <div className="flex-1 overflow-y-auto p-4">
           {loading ? (
             <div className="flex justify-center items-center h-32">
-              <div className="text-black">Loading dishes...</div>
+              <div className="text-card-foreground">{tCommon('loading')}</div>
             </div>
           ) : dishes.length > 0 ? (
             <div className="space-y-3">
@@ -108,24 +111,24 @@ export default function MealSelectionPopup({
                 <div
                   key={dish.dish_id}
                   onClick={() => handleSelectDish(dish)}
-                  className="p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                  className="p-4 border border-border rounded-lg cursor-pointer hover:bg-muted hover:border-muted-foreground transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <h3 className="font-medium text-black">{dish.name}</h3>
+                      <h3 className="font-medium text-card-foreground">{dish.name}</h3>
                       {dish.description && (
-                        <p className="text-sm text-black mt-1">{dish.description}</p>
+                        <p className="text-sm text-card-foreground mt-1">{dish.description}</p>
                       )}
-                      <div className="flex items-center space-x-4 mt-2 text-xs text-black">
+                      <div className="flex items-center space-x-4 mt-2 text-xs text-card-foreground">
                         {dish.calories && <span>{dish.calories} cal</span>}
                         {dish.prep_time && <span>{dish.prep_time}min prep</span>}
                         {dish.cook_time && <span>{dish.cook_time}min cook</span>}
                       </div>
                     </div>
                     {adding === dish.dish_id ? (
-                      <div className="text-sm text-blue-600">Adding...</div>
+                      <div className="text-sm text-blue-600">{t('adding')}</div>
                     ) : (
-                      <div className="text-blue-600 font-medium">Select</div>
+                      <div className="text-blue-600 font-medium">{t('select')}</div>
                     )}
                   </div>
                 </div>
@@ -133,11 +136,11 @@ export default function MealSelectionPopup({
             </div>
           ) : (
             <div className="text-center py-8">
-              <div className="text-black mb-4">
-                No {mealType} dishes found
+              <div className="text-card-foreground mb-4">
+                {t('noDishesFound')} {t(mealType as keyof any)}
               </div>
-              <p className="text-sm text-black">
-                Create some {mealType} dishes first to add them to your meal plan
+              <p className="text-sm text-card-foreground">
+                {t('createDishesFirst')} {t(mealType as keyof any)} {t('dishesToAdd')}
               </p>
             </div>
           )}
@@ -145,16 +148,16 @@ export default function MealSelectionPopup({
       </div>
 
       <style jsx>{`
-        @keyframes slide-up {
+        @keyframes slide-right {
           from {
-            transform: translateY(100%);
+            transform: translateX(100%);
           }
           to {
-            transform: translateY(0);
+            transform: translateX(0);
           }
         }
-        .animate-slide-up {
-          animation: slide-up 0.3s ease-out;
+        .animate-slide-right {
+          animation: slide-right 0.3s ease-out;
         }
       `}</style>
     </div>

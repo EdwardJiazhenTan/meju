@@ -52,13 +52,13 @@ export default function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="max-w-md w-full space-y-8 p-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-black">
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-foreground">
             {isLogin ? 'Sign in to Meju' : 'Create your account'}
           </h2>
-          <p className="mt-2 text-center text-sm text-black">
+          <p className="mt-2 text-center text-sm text-foreground">
             Plan your weekly meals with ease
           </p>
         </div>
@@ -73,7 +73,7 @@ export default function LoginForm() {
                   placeholder="Username (optional)"
                   value={formData.username}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-700"
+                  className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-input text-foreground placeholder-muted-foreground"
                 />
                 <input
                   name="displayName"
@@ -81,7 +81,7 @@ export default function LoginForm() {
                   placeholder="Display Name (optional)"
                   value={formData.displayName}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-700"
+                  className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-input text-foreground placeholder-muted-foreground"
                 />
               </>
             )}
@@ -93,7 +93,7 @@ export default function LoginForm() {
               placeholder="Email address"
               value={formData.email}
               onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-700"
+              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-input text-foreground placeholder-muted-foreground"
             />
             
             <input
@@ -103,7 +103,7 @@ export default function LoginForm() {
               placeholder="Password"
               value={formData.password}
               onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-700"
+              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-input text-foreground placeholder-muted-foreground"
             />
           </div>
 
@@ -114,7 +114,7 @@ export default function LoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
           >
             {loading ? 'Loading...' : (isLogin ? 'Sign in' : 'Sign up')}
           </button>
@@ -123,7 +123,7 @@ export default function LoginForm() {
             <button
               type="button"
               onClick={() => setIsLogin(!isLogin)}
-              className="text-blue-600 hover:text-blue-500 text-sm"
+              className="text-primary hover:text-primary/80 text-sm"
             >
               {isLogin 
                 ? "Don't have an account? Sign up" 

@@ -12,12 +12,18 @@ interface User {
 
 interface Dish {
   dish_id: number;
+  owner_id: number;
   name: string;
   description?: string;
-  meal: string;
   calories?: number;
+  meal: "breakfast" | "lunch" | "dinner" | "dessert";
+  special?: boolean;
+  url?: string;
+  visibility?: "private" | "shared" | "public";
   prep_time?: number;
   cook_time?: number;
+  created_at: string;
+  updated_at: string;
 }
 
 interface MealPlanData {
@@ -133,6 +139,18 @@ export class ApiClient {
     return this.makeRequest<{ dishes: Dish[] }>('/dishes');
   }
 
+  static async getDishById(dishId: number) {
+    return this.makeRequest<{ dish: Dish }>(`/dishes/${dishId}`);
+  }
+
+  static async getDishIngredients(dishId: number) {
+    return this.makeRequest(`/dishes/${dishId}/ingredients`);
+  }
+
+  static async getDishTags(dishId: number) {
+    return this.makeRequest(`/dishes/${dishId}/tags`);
+  }
+
   static async createDish(dishData: {
     name: string;
     description?: string;
@@ -140,6 +158,13 @@ export class ApiClient {
     calories?: number;
     prep_time?: number;
     cook_time?: number;
+    special?: boolean;
+    url?: string;
+    visibility?: string;
+    ingredients?: Array<{
+      ingredient_id: number;
+      quantity: number;
+    }>;
   }) {
     return this.makeRequest<{ dish: Dish }>('/dishes', {
       method: 'POST',
@@ -176,6 +201,7 @@ export class ApiClient {
     name: string;
     unit?: string;
     category?: string;
+    calories_per_unit?: number;
   }) {
     return this.makeRequest('/ingredients', {
       method: 'POST',

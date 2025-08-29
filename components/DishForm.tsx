@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { ApiClient } from "@/lib/api";
 
 interface Ingredient {
@@ -8,6 +9,7 @@ interface Ingredient {
   name: string;
   unit: string | null;
   category: string | null;
+  calories_per_unit: number | null;
 }
 
 interface DishIngredient {
@@ -30,6 +32,7 @@ interface DishFormData {
 }
 
 export default function DishForm() {
+  const t = useTranslations();
   const [formData, setFormData] = useState<DishFormData>({
     name: "",
     description: "",
@@ -54,16 +57,42 @@ export default function DishForm() {
   const [ingredientQuantity, setIngredientQuantity] = useState("");
   const [ingredientsLoading, setIngredientsLoading] = useState(false);
 
+  // Calculate total calories from ingredients
+  const calculateTotalCalories = useCallback(() => {
+    let totalCalories = 0;
+    dishIngredients.forEach((dishIngredient) => {
+      const ingredient = ingredients.find(
+        (ing) => ing.ingredient_id === dishIngredient.ingredient_id,
+      );
+      if (ingredient && ingredient.calories_per_unit) {
+        totalCalories += ingredient.calories_per_unit * dishIngredient.quantity;
+      }
+    });
+    return Math.round(totalCalories);
+  }, [dishIngredients, ingredients]);
+
   const mealOptions = [
-    { value: "breakfast", label: "Breakfast", icon: "" },
-    { value: "lunch", label: "Lunch", icon: "" },
-    { value: "dinner", label: "Dinner", icon: "" },
-    { value: "dessert", label: "Dessert", icon: "" },
+    { value: "breakfast", label: t("mealPlan.breakfast") },
+    { value: "lunch", label: t("mealPlan.lunch") },
+    { value: "dinner", label: t("mealPlan.dinner") },
+    { value: "dessert", label: t("mealPlan.dessert") },
+  ];
+
+  const visibilityOptions = [
+    { value: "private", label: t("dish.private") },
+    { value: "shared", label: t("dish.shared") },
+    { value: "public", label: t("dish.public") },
   ];
 
   useEffect(() => {
     loadIngredients();
   }, []);
+
+  // Auto-update calories when ingredients change
+  useEffect(() => {
+    const totalCalories = calculateTotalCalories();
+    setFormData((prev) => ({ ...prev, calories: totalCalories.toString() }));
+  }, [dishIngredients, ingredients, calculateTotalCalories]);
 
   const loadIngredients = async () => {
     setIngredientsLoading(true);
@@ -73,7 +102,7 @@ export default function DishForm() {
         setIngredients(response.data.ingredients || []);
       }
     } catch (error) {
-      console.error('Failed to load ingredients:', error);
+      console.error("Failed to load ingredients:", error);
     } finally {
       setIngredientsLoading(false);
     }
@@ -84,7 +113,7 @@ export default function DishForm() {
       loadIngredients();
       return;
     }
-    
+
     setIngredientsLoading(true);
     try {
       const response = await ApiClient.searchIngredients(searchTerm);
@@ -92,7 +121,7 @@ export default function DishForm() {
         setIngredients(response.data.ingredients || []);
       }
     } catch (error) {
-      console.error('Failed to search ingredients:', error);
+      console.error("Failed to search ingredients:", error);
     } finally {
       setIngredientsLoading(false);
     }
@@ -116,7 +145,7 @@ export default function DishForm() {
     if (isNaN(quantity) || quantity <= 0) return;
 
     const existingIndex = dishIngredients.findIndex(
-      ing => ing.ingredient_id === selectedIngredient.ingredient_id
+      (ing) => ing.ingredient_id === selectedIngredient.ingredient_id,
     );
 
     if (existingIndex >= 0) {
@@ -131,17 +160,19 @@ export default function DishForm() {
           name: selectedIngredient.name,
           unit: selectedIngredient.unit,
           quantity,
-        }
+        },
       ]);
     }
 
     setSelectedIngredient(null);
-    setIngredientSearchTerm('');
-    setIngredientQuantity('');
+    setIngredientSearchTerm("");
+    setIngredientQuantity("");
   };
 
   const removeIngredient = (ingredientId: number) => {
-    setDishIngredients(dishIngredients.filter(ing => ing.ingredient_id !== ingredientId));
+    setDishIngredients(
+      dishIngredients.filter((ing) => ing.ingredient_id !== ingredientId),
+    );
   };
 
   const handleInputChange = (
@@ -176,6 +207,10 @@ export default function DishForm() {
         special: formData.special,
         url: formData.url || undefined,
         visibility: formData.visibility,
+        ingredients: dishIngredients.map(ing => ({
+          ingredient_id: ing.ingredient_id,
+          quantity: ing.quantity
+        }))
       };
 
       const response = await ApiClient.createDish(dishData);
@@ -209,102 +244,169 @@ export default function DishForm() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="bg-white rounded-lg shadow-sm border p-6">
-        <h2 className="text-2xl font-bold text-black mb-6">Create New Dish</h2>
+    <div className="max-w-5xl mx-auto">
+      <div className="bg-card rounded-lg shadow-sm border-border border p-6">
+        <h2 className="text-2xl font-bold text-card-foreground mb-6">
+          {t("dish.createTitle")}
+        </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Dish Name */}
-          <div>
-            <label
-              htmlFor="name"
-              className="block text-sm font-medium text-black mb-2"
-            >
-              Dish Name *
-            </label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              required
-              value={formData.name}
-              onChange={handleInputChange}
-              placeholder="e.g., Spaghetti Carbonara"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-700 text-black"
-            />
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Basic Information - Full Width */}
+          <div className="space-y-6">
+            {/* Dish Name */}
+            <div>
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-card-foreground mb-2"
+              >
+                {t("dish.name")} *
+              </label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                required
+                value={formData.name}
+                onChange={handleInputChange}
+                placeholder={t("dish.namePlaceholder")}
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-input text-foreground placeholder-muted-foreground"
+              />
+            </div>
+
+            {/* Description - Full Width */}
+            <div>
+              <label
+                htmlFor="description"
+                className="block text-sm font-medium text-card-foreground mb-2"
+              >
+                {t("dish.description")}
+              </label>
+              <textarea
+                id="description"
+                name="description"
+                rows={6}
+                value={formData.description}
+                onChange={handleInputChange}
+                placeholder={t("dish.descriptionPlaceholder")}
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-input text-foreground placeholder-muted-foreground"
+              />
+            </div>
           </div>
 
-          {/* Description */}
-          <div>
-            <label
-              htmlFor="description"
-              className="block text-sm font-medium text-black mb-2"
-            >
-              Description
-            </label>
-            <textarea
-              id="description"
-              name="description"
-              rows={3}
-              value={formData.description}
-              onChange={handleInputChange}
-              placeholder="Brief description of the dish..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-700 text-black"
-            />
-          </div>
+          {/* Two Column Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Left Column */}
+            <div className="space-y-6">
+              {/* Meal Type */}
+              <div>
+                <label className="block text-sm font-medium text-card-foreground mb-3">
+                  {t("dish.mealType")} *
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {mealOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          meal: option.value as any,
+                        }))
+                      }
+                      className={`p-4 rounded-lg border-2 transition-colors text-center ${
+                        formData.meal === option.value
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-card text-card-foreground hover:border-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      <div className="font-medium">{option.label}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {/* Meal Type */}
-          <div>
-            <label
-              htmlFor="meal"
-              className="block text-sm font-medium text-black mb-2"
-            >
-              Meal Type *
-            </label>
-            <select
-              id="meal"
-              name="meal"
-              required
-              value={formData.meal}
-              onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
-            >
-              <option value="">Select meal type</option>
-              {mealOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
+              {/* Visibility */}
+              <div>
+                <label className="block text-sm font-medium text-card-foreground mb-3">
+                  {t("dish.visibility")} *
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {visibilityOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          visibility: option.value as any,
+                        }))
+                      }
+                      className={`p-3 rounded-lg border-2 transition-colors text-center ${
+                        formData.visibility === option.value
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-card text-card-foreground hover:border-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      <div className="text-sm font-medium">{option.label}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
 
-          {/* Visibility */}
-          <div>
-            <label
-              htmlFor="visibility"
-              className="block text-sm font-medium text-black mb-2"
-            >
-              Visibility *
-            </label>
-            <select
-              id="visibility"
-              name="visibility"
-              required
-              value={formData.visibility}
-              onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
-            >
-              <option value="private">Private</option>
-              <option value="shared">Shared</option>
-              <option value="public">Public</option>
-            </select>
+            {/* Right Column */}
+            <div className="space-y-6">
+              {/* Additional Information */}
+              <div className="space-y-4">
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label
+                      htmlFor="prep_time"
+                      className="block text-sm font-medium text-card-foreground mb-2"
+                    >
+                      {t("dish.prepTime")}
+                    </label>
+                    <input
+                      type="number"
+                      id="prep_time"
+                      name="prep_time"
+                      min="0"
+                      value={formData.prep_time}
+                      onChange={handleInputChange}
+                      placeholder="15"
+                      className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-input text-foreground placeholder-muted-foreground"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="cook_time"
+                      className="block text-sm font-medium text-card-foreground mb-2"
+                    >
+                      {t("dish.cookTime")}
+                    </label>
+                    <input
+                      type="number"
+                      id="cook_time"
+                      name="cook_time"
+                      min="0"
+                      value={formData.cook_time}
+                      onChange={handleInputChange}
+                      placeholder="30"
+                      className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-input text-foreground placeholder-muted-foreground"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* URL */}
           <div>
             <label
               htmlFor="url"
-              className="block text-sm font-medium text-black mb-2"
+              className="block text-sm font-medium text-card-foreground mb-2"
             >
               Recipe URL
             </label>
@@ -315,7 +417,7 @@ export default function DishForm() {
               value={formData.url}
               onChange={handleInputChange}
               placeholder="https://example.com/recipe"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-700 text-black"
+              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-input text-foreground placeholder-muted-foreground"
             />
           </div>
 
@@ -327,11 +429,11 @@ export default function DishForm() {
               name="special"
               checked={formData.special}
               onChange={handleInputChange}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              className="h-4 w-4 text-primary focus:ring-primary border-border rounded"
             />
             <label
               htmlFor="special"
-              className="ml-2 block text-sm font-medium text-black"
+              className="ml-2 block text-sm font-medium text-card-foreground"
             >
               Mark as special dish
             </label>
@@ -339,34 +441,37 @@ export default function DishForm() {
 
           {/* Ingredients Section */}
           <div>
-            <label className="block text-sm font-medium text-black mb-2">
+            <label className="block text-sm font-medium text-card-foreground mb-2">
               Ingredients
             </label>
-            
+
             {/* Add Ingredient */}
-            <div className="border border-gray-300 rounded-md p-4 space-y-4">
+            <div className="border border-border rounded-md p-4 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                 <div className="relative">
                   <input
                     type="text"
                     value={ingredientSearchTerm}
                     onChange={handleIngredientSearch}
-                    placeholder="Search ingredients..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-700 text-black"
+                    placeholder={t("dish.searchIngredients")}
+                    className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-input text-foreground placeholder-muted-foreground"
                   />
-                  {ingredientSearchTerm && ingredients.length > 0 && !selectedIngredient && (
-                    <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-40 overflow-y-auto">
-                      {ingredients.map((ingredient) => (
-                        <div
-                          key={ingredient.ingredient_id}
-                          onClick={() => handleIngredientSelect(ingredient)}
-                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-black"
-                        >
-                          {ingredient.name} {ingredient.unit && `(${ingredient.unit})`}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {ingredientSearchTerm &&
+                    ingredients.length > 0 &&
+                    !selectedIngredient && (
+                      <div className="absolute z-10 w-full bg-card border border-border rounded-md mt-1 max-h-40 overflow-y-auto">
+                        {ingredients.map((ingredient) => (
+                          <div
+                            key={ingredient.ingredient_id}
+                            onClick={() => handleIngredientSelect(ingredient)}
+                            className="px-3 py-2 hover:bg-muted cursor-pointer text-card-foreground"
+                          >
+                            {ingredient.name}{" "}
+                            {ingredient.unit && `(${ingredient.unit})`}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                 </div>
                 <input
                   type="number"
@@ -374,8 +479,8 @@ export default function DishForm() {
                   step="0.1"
                   value={ingredientQuantity}
                   onChange={(e) => setIngredientQuantity(e.target.value)}
-                  placeholder="Quantity"
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-700 text-black"
+                  placeholder={t("dish.quantity")}
+                  className="px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent placeholder-muted-foreground text-card-foreground"
                 />
                 <button
                   type="button"
@@ -386,20 +491,28 @@ export default function DishForm() {
                   Add
                 </button>
               </div>
-              
+
               {/* Current Ingredients List */}
               {dishIngredients.length > 0 && (
                 <div className="mt-4">
-                  <h4 className="text-sm font-medium text-black mb-2">Added Ingredients:</h4>
+                  <h4 className="text-sm font-medium text-card-foreground mb-2">
+                    {t("dish.addedIngredients")}:
+                  </h4>
                   <div className="space-y-2">
                     {dishIngredients.map((ingredient) => (
-                      <div key={ingredient.ingredient_id} className="flex justify-between items-center bg-gray-50 px-3 py-2 rounded">
-                        <span className="text-black">
-                          {ingredient.name}: {ingredient.quantity} {ingredient.unit || 'units'}
+                      <div
+                        key={ingredient.ingredient_id}
+                        className="flex justify-between items-center bg-muted px-3 py-2 rounded"
+                      >
+                        <span className="text-card-foreground">
+                          {ingredient.name}: {ingredient.quantity}{" "}
+                          {ingredient.unit || "units"}
                         </span>
                         <button
                           type="button"
-                          onClick={() => removeIngredient(ingredient.ingredient_id)}
+                          onClick={() =>
+                            removeIngredient(ingredient.ingredient_id)
+                          }
                           className="text-red-600 hover:text-red-800 text-sm"
                         >
                           Remove
@@ -412,73 +525,37 @@ export default function DishForm() {
             </div>
           </div>
 
-          {/* Additional Information */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label
-                htmlFor="calories"
-                className="block text-sm font-medium text-black mb-2"
-              >
-                Calories
-              </label>
-              <input
-                type="number"
-                id="calories"
-                name="calories"
-                min="0"
-                value={formData.calories}
-                onChange={handleInputChange}
-                placeholder="300"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-700 text-black"
-              />
+          {/* Total Calories Display */}
+          {dishIngredients.length > 0 && (
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+                    Total Calories
+                  </h3>
+                  <p className="text-sm text-blue-600 dark:text-blue-300">
+                    Automatically calculated from ingredients
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className="text-3xl font-bold text-blue-900 dark:text-blue-100">
+                    {formData.calories || '0'}
+                  </div>
+                  <div className="text-sm text-blue-600 dark:text-blue-300">
+                    calories
+                  </div>
+                </div>
+              </div>
             </div>
-
-            <div>
-              <label
-                htmlFor="prep_time"
-                className="block text-sm font-medium text-black mb-2"
-              >
-                Prep Time (min)
-              </label>
-              <input
-                type="number"
-                id="prep_time"
-                name="prep_time"
-                min="0"
-                value={formData.prep_time}
-                onChange={handleInputChange}
-                placeholder="15"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-700 text-black"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="cook_time"
-                className="block text-sm font-medium text-black mb-2"
-              >
-                Cook Time (min)
-              </label>
-              <input
-                type="number"
-                id="cook_time"
-                name="cook_time"
-                min="0"
-                value={formData.cook_time}
-                onChange={handleInputChange}
-                placeholder="30"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-700 text-black"
-              />
-            </div>
-          </div>
+          )}
 
           {/* Message */}
           {message && (
             <div
-              className={`p-3 rounded-md ${
+              className={`p-3 rounded-md border ${
                 messageType === "success"
-                  ? "bg-green-50 text-green-800 border border-green-200"
-                  : "bg-red-50 text-red-800 border border-red-200"
+                  ? "bg-green-50 text-green-800 border-green-200"
+                  : "bg-red-50 text-red-800 border-red-200"
               }`}
             >
               {message}
@@ -490,7 +567,7 @@ export default function DishForm() {
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2 bg-primary text-white rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Creating..." : "Create Dish"}
             </button>
@@ -500,4 +577,3 @@ export default function DishForm() {
     </div>
   );
 }
-

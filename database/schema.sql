@@ -67,10 +67,14 @@ CREATE TABLE dish_shares (
 -- Ingredients table
 CREATE TABLE ingredients (
     ingredient_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL,
+    ingredient_key TEXT NOT NULL,
+    name TEXT NOT NULL,
     unit TEXT,
     category TEXT CHECK (category IN ('vegetable', 'meat', 'dairy', 'grain', 'spice', 'fruit', 'other')),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    calories_per_unit REAL CHECK (calories_per_unit >= 0),
+    language_code TEXT DEFAULT 'en' CHECK (language_code IN ('en', 'zh-CN')),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Dish ingredients table
@@ -136,6 +140,10 @@ CREATE INDEX idx_dishes_visibility ON dishes(visibility);
 CREATE INDEX idx_user_oauth_provider ON user_oauth(provider, provider_user_id);
 CREATE INDEX idx_dish_shares_shared_with ON dish_shares(shared_with);
 CREATE INDEX idx_meal_slots_daily_plan ON meal_slots(daily_plan_id);
+CREATE INDEX idx_ingredients_key ON ingredients(ingredient_key);
+CREATE INDEX idx_ingredients_language ON ingredients(language_code);
+CREATE INDEX idx_ingredients_key_lang ON ingredients(ingredient_key, language_code);
+CREATE UNIQUE INDEX idx_ingredients_name_lang_unique ON ingredients(name, language_code);
 
 -- Trigger to automatically update updated_at timestamp
 CREATE TRIGGER update_users_updated_at 
@@ -159,20 +167,37 @@ CREATE TRIGGER update_weekly_meal_plans_updated_at
         UPDATE weekly_meal_plans SET updated_at = CURRENT_TIMESTAMP WHERE plan_id = NEW.plan_id;
     END;
 
+CREATE TRIGGER update_ingredients_updated_at 
+    AFTER UPDATE ON ingredients
+    FOR EACH ROW
+    BEGIN
+        UPDATE ingredients SET updated_at = CURRENT_TIMESTAMP WHERE ingredient_id = NEW.ingredient_id;
+    END;
+
 -- Insert sample data for testing
 
--- Sample ingredients
-INSERT INTO ingredients (name, unit, category) VALUES 
-    ('potato', 'piece', 'vegetable'),
-    ('salt', 'gram', 'spice'),
-    ('chicken breast', 'gram', 'meat'),
-    ('rice', 'gram', 'grain'),
-    ('onion', 'piece', 'vegetable'),
-    ('garlic', 'clove', 'vegetable'),
-    ('tomato', 'piece', 'vegetable'),
-    ('olive oil', 'ml', 'other'),
-    ('black pepper', 'gram', 'spice'),
-    ('milk', 'ml', 'dairy');
+-- Sample ingredients (English and Chinese)
+INSERT INTO ingredients (ingredient_key, name, unit, category, calories_per_unit, language_code) VALUES 
+    ('potato', 'potato', 'piece', 'vegetable', 77, 'en'),
+    ('potato', '土豆', '个', 'vegetable', 77, 'zh-CN'),
+    ('salt', 'salt', 'gram', 'spice', 0, 'en'),
+    ('salt', '盐', '克', 'spice', 0, 'zh-CN'),
+    ('chicken_breast', 'chicken breast', 'gram', 'meat', 165, 'en'),
+    ('chicken_breast', '鸡胸肉', '克', 'meat', 165, 'zh-CN'),
+    ('rice', 'rice', 'gram', 'grain', 130, 'en'),
+    ('rice', '米饭', '克', 'grain', 130, 'zh-CN'),
+    ('onion', 'onion', 'piece', 'vegetable', 40, 'en'),
+    ('onion', '洋葱', '个', 'vegetable', 40, 'zh-CN'),
+    ('garlic', 'garlic', 'clove', 'vegetable', 4, 'en'),
+    ('garlic', '蒜', '瓣', 'vegetable', 4, 'zh-CN'),
+    ('tomato', 'tomato', 'piece', 'vegetable', 18, 'en'),
+    ('tomato', '西红柿', '个', 'vegetable', 18, 'zh-CN'),
+    ('olive_oil', 'olive oil', 'ml', 'other', 884, 'en'),
+    ('olive_oil', '橄榄油', '毫升', 'other', 884, 'zh-CN'),
+    ('black_pepper', 'black pepper', 'gram', 'spice', 251, 'en'),
+    ('black_pepper', '黑胡椒', '克', 'spice', 251, 'zh-CN'),
+    ('milk', 'milk', 'ml', 'dairy', 42, 'en'),
+    ('milk', '牛奶', '毫升', 'dairy', 42, 'zh-CN');
 
 -- Sample user (email registration)
 INSERT INTO users (username, email, password_hash, display_name, registration_method) VALUES 
@@ -206,3 +231,53 @@ INSERT INTO meal_slots (daily_plan_id, meal_type, slot_order) VALUES (1, 'lunch'
 
 -- Assign dish to meal slot
 INSERT INTO meal_slot_dishes (slot_id, dish_id, serving_size) VALUES (1, 1, 1.0);
+
+-- Full-text search tables for fuzzy search
+CREATE VIRTUAL TABLE ingredients_fts USING fts5(
+    ingredient_id UNINDEXED,
+    ingredient_key UNINDEXED,
+    name,
+    language_code UNINDEXED,
+    content='ingredients',
+    content_rowid='ingredient_id'
+);
+
+CREATE VIRTUAL TABLE dishes_fts USING fts5(
+    dish_id UNINDEXED,
+    name,
+    description,
+    content='dishes',
+    content_rowid='dish_id'
+);
+
+-- FTS sync triggers for ingredients
+CREATE TRIGGER ingredients_fts_insert AFTER INSERT ON ingredients BEGIN
+    INSERT INTO ingredients_fts(ingredient_id, ingredient_key, name, language_code) 
+    VALUES (new.ingredient_id, new.ingredient_key, new.name, new.language_code);
+END;
+
+CREATE TRIGGER ingredients_fts_delete AFTER DELETE ON ingredients BEGIN
+    DELETE FROM ingredients_fts WHERE ingredient_id = old.ingredient_id;
+END;
+
+CREATE TRIGGER ingredients_fts_update AFTER UPDATE ON ingredients BEGIN
+    DELETE FROM ingredients_fts WHERE ingredient_id = old.ingredient_id;
+    INSERT INTO ingredients_fts(ingredient_id, ingredient_key, name, language_code) 
+    VALUES (new.ingredient_id, new.ingredient_key, new.name, new.language_code);
+END;
+
+-- FTS sync triggers for dishes
+CREATE TRIGGER dishes_fts_insert AFTER INSERT ON dishes BEGIN
+    INSERT INTO dishes_fts(dish_id, name, description) 
+    VALUES (new.dish_id, new.name, new.description);
+END;
+
+CREATE TRIGGER dishes_fts_delete AFTER DELETE ON dishes BEGIN
+    DELETE FROM dishes_fts WHERE dish_id = old.dish_id;
+END;
+
+CREATE TRIGGER dishes_fts_update AFTER UPDATE ON dishes BEGIN
+    DELETE FROM dishes_fts WHERE dish_id = old.dish_id;
+    INSERT INTO dishes_fts(dish_id, name, description) 
+    VALUES (new.dish_id, new.name, new.description);
+END;

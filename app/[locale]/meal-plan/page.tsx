@@ -1,26 +1,30 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import Navbar from '@/components/Navbar';
-import MealPlanCalendar from '@/components/MealPlanCalendar';
+import MealPlanCalendar, { MealPlanCalendarRef } from '@/components/MealPlanCalendar';
 import MealSelectionPopup from '@/components/MealSelectionPopup';
 
 export default function MealPlanPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const t = useTranslations();
+  const locale = useLocale();
   const [selectedMeal, setSelectedMeal] = useState<{
     day: number;
     mealType: string;
   } | null>(null);
+  const mealPlanRef = useRef<MealPlanCalendarRef>(null);
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/');
+      router.push(`/${locale}/`);
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, locale]);
 
   const handleMealClick = (day: number, mealType: string) => {
     setSelectedMeal({ day, mealType });
@@ -30,16 +34,18 @@ export default function MealPlanPage() {
     setSelectedMeal(null);
   };
 
-  const handleDishSelected = () => {
-    // Refresh meal plan data by re-rendering the calendar
+  const handleDishSelected = async () => {
+    // Refresh meal plan data
+    if (mealPlanRef.current) {
+      await mealPlanRef.current.refreshMealPlan();
+    }
     setSelectedMeal(null);
-    // The calendar component will automatically refresh its data
   };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-black">Loading...</div>
+        <div className="text-foreground">{t('common.loading')}</div>
       </div>
     );
   }
@@ -49,18 +55,18 @@ export default function MealPlanPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <Navbar />
       
-      <div className="max-w-7xl mx-auto py-6 px-4">
+      <div className={`max-w-7xl mx-auto py-6 px-4 transition-all duration-300 ${selectedMeal ? 'mr-96' : ''}`}>
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-black">Meal Plan</h1>
-          <p className="text-black mt-1">
-            Plan your meals for the week. Click on any meal slot to add dishes.
+          <h1 className="text-2xl font-bold text-foreground">{t('mealPlan.title')}</h1>
+          <p className="text-foreground mt-1">
+            {t('mealPlan.description')}
           </p>
         </div>
 
-        <MealPlanCalendar onMealClick={handleMealClick} />
+        <MealPlanCalendar ref={mealPlanRef} onMealClick={handleMealClick} />
 
         <MealSelectionPopup
           isOpen={selectedMeal !== null}

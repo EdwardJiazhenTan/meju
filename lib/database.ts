@@ -32,6 +32,7 @@ export interface Dish {
 
 export interface Ingredient {
   ingredient_id: number;
+  ingredient_key: string;
   name: string;
   unit: string | null;
   category:
@@ -43,7 +44,10 @@ export interface Ingredient {
     | "fruit"
     | "other"
     | null;
+  calories_per_unit: number | null;
+  language_code: string;
   created_at: string;
+  updated_at: string;
 }
 
 export interface CreateUserData {
@@ -104,6 +108,15 @@ export interface DishIngredient {
   name: string;
   unit: string | null;
   quantity: number;
+}
+
+export interface CreateIngredientData {
+  ingredient_key: string;
+  name: string;
+  unit?: string;
+  category?: string;
+  calories_per_unit?: number;
+  language_code?: string;
 }
 
 let db: Database.Database | null = null;
@@ -418,6 +431,53 @@ export const dishQueries = {
     const stmt = db.prepare("DELETE FROM dish_tags WHERE dish_id = ? AND tag = ?");
     return stmt.run(dishId, tag);
   },
+
+  // Get dish ingredients
+  getDishIngredients: (dishId: number): DishIngredient[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT i.name, i.unit, di.quantity
+      FROM dish_ingredients di
+      JOIN ingredients i ON di.ingredient_id = i.ingredient_id
+      WHERE di.dish_id = ?
+    `);
+    return stmt.all(dishId) as DishIngredient[];
+  },
+
+  // Get specific dish ingredient relationship
+  getDishIngredientById: (dishId: number, ingredientId: number): { quantity: number } | undefined => {
+    const db = getDatabase();
+    const stmt = db.prepare("SELECT quantity FROM dish_ingredients WHERE dish_id = ? AND ingredient_id = ?");
+    return stmt.get(dishId, ingredientId) as { quantity: number } | undefined;
+  },
+
+  // Add ingredient to dish
+  addIngredientToDish: (dishId: number, ingredientId: number, quantity: number): Database.RunResult => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      INSERT INTO dish_ingredients (dish_id, ingredient_id, quantity)
+      VALUES (?, ?, ?)
+    `);
+    return stmt.run(dishId, ingredientId, quantity);
+  },
+
+  // Update ingredient quantity in dish
+  updateDishIngredientQuantity: (dishId: number, ingredientId: number, quantity: number): Database.RunResult => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      UPDATE dish_ingredients 
+      SET quantity = ?
+      WHERE dish_id = ? AND ingredient_id = ?
+    `);
+    return stmt.run(quantity, dishId, ingredientId);
+  },
+
+  // Remove ingredient from dish
+  removeIngredientFromDish: (dishId: number, ingredientId: number): Database.RunResult => {
+    const db = getDatabase();
+    const stmt = db.prepare("DELETE FROM dish_ingredients WHERE dish_id = ? AND ingredient_id = ?");
+    return stmt.run(dishId, ingredientId);
+  },
 };
 
 // Meal planning operations
@@ -568,18 +628,6 @@ export const ingredientQueries = {
     return stmt.all() as Ingredient[];
   },
 
-  // Get dish ingredients
-  getDishIngredients: (dishId: number): DishIngredient[] => {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-      SELECT i.name, i.unit, di.quantity
-      FROM dish_ingredients di
-      JOIN ingredients i ON di.ingredient_id = i.ingredient_id
-      WHERE di.dish_id = ?
-    `);
-    return stmt.all(dishId) as DishIngredient[];
-  },
-
   // Get ingredient by ID
   getIngredientById: (ingredientId: number): Ingredient | undefined => {
     const db = getDatabase();
@@ -627,52 +675,77 @@ export const ingredientQueries = {
   },
 
   // Create new ingredient
-  createIngredient: (ingredientData: { name: string; unit?: string; category?: string }): Database.RunResult => {
+  createIngredient: (ingredientData: CreateIngredientData): Database.RunResult => {
     const db = getDatabase();
     const stmt = db.prepare(`
-      INSERT INTO ingredients (name, unit, category)
-      VALUES (?, ?, ?)
+      INSERT INTO ingredients (ingredient_key, name, unit, category, calories_per_unit, language_code)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
     return stmt.run(
+      ingredientData.ingredient_key,
       ingredientData.name,
       ingredientData.unit || null,
-      ingredientData.category || null
+      ingredientData.category || null,
+      ingredientData.calories_per_unit || null,
+      ingredientData.language_code || 'en'
     );
   },
 
-  // Get specific dish ingredient relationship
-  getDishIngredientById: (dishId: number, ingredientId: number): { quantity: number } | undefined => {
-    const db = getDatabase();
-    const stmt = db.prepare("SELECT quantity FROM dish_ingredients WHERE dish_id = ? AND ingredient_id = ?");
-    return stmt.get(dishId, ingredientId) as { quantity: number } | undefined;
-  },
-
-  // Add ingredient to dish
-  addIngredientToDish: (dishId: number, ingredientId: number, quantity: number): Database.RunResult => {
+  // Get ingredients by language with fallback to English
+  getIngredientsByLanguage: (languageCode: string = 'en'): Ingredient[] => {
     const db = getDatabase();
     const stmt = db.prepare(`
-      INSERT INTO dish_ingredients (dish_id, ingredient_id, quantity)
-      VALUES (?, ?, ?)
+      SELECT * FROM ingredients 
+      WHERE language_code = ?
+      ORDER BY name
     `);
-    return stmt.run(dishId, ingredientId, quantity);
+    return stmt.all(languageCode) as Ingredient[];
   },
 
-  // Update ingredient quantity in dish
-  updateDishIngredientQuantity: (dishId: number, ingredientId: number, quantity: number): Database.RunResult => {
+  // Get ingredient by key and language (with English fallback)
+  getIngredientByKey: (ingredientKey: string, languageCode: string = 'en'): Ingredient | undefined => {
     const db = getDatabase();
     const stmt = db.prepare(`
-      UPDATE dish_ingredients 
-      SET quantity = ?
-      WHERE dish_id = ? AND ingredient_id = ?
+      SELECT * FROM ingredients 
+      WHERE ingredient_key = ? AND language_code = ?
+      UNION
+      SELECT * FROM ingredients 
+      WHERE ingredient_key = ? AND language_code = 'en' AND NOT EXISTS (
+        SELECT 1 FROM ingredients WHERE ingredient_key = ? AND language_code = ?
+      )
+      LIMIT 1
     `);
-    return stmt.run(quantity, dishId, ingredientId);
+    return stmt.get(ingredientKey, languageCode, ingredientKey, ingredientKey, languageCode) as Ingredient | undefined;
   },
 
-  // Remove ingredient from dish
-  removeIngredientFromDish: (dishId: number, ingredientId: number): Database.RunResult => {
+  // Search ingredients across languages with fuzzy matching
+  searchIngredientsWithFTS: (searchTerm: string, languageCode: string = 'en'): Ingredient[] => {
     const db = getDatabase();
-    const stmt = db.prepare("DELETE FROM dish_ingredients WHERE dish_id = ? AND ingredient_id = ?");
-    return stmt.run(dishId, ingredientId);
+    const stmt = db.prepare(`
+      SELECT i.* FROM ingredients i
+      JOIN ingredients_fts fts ON i.ingredient_id = fts.ingredient_id
+      WHERE ingredients_fts MATCH ? AND (i.language_code = ? OR i.language_code = 'en')
+      ORDER BY 
+        CASE WHEN i.language_code = ? THEN 0 ELSE 1 END,
+        rank
+    `);
+    return stmt.all(searchTerm, languageCode, languageCode) as Ingredient[];
+  },
+
+  // Get all ingredient keys (for finding missing translations)
+  getAllIngredientKeys: (): { ingredient_key: string; languages: string[] }[] => {
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      SELECT ingredient_key, GROUP_CONCAT(language_code) as languages
+      FROM ingredients 
+      GROUP BY ingredient_key
+      ORDER BY ingredient_key
+    `);
+    const results = stmt.all() as { ingredient_key: string; languages: string }[];
+    return results.map(row => ({
+      ingredient_key: row.ingredient_key,
+      languages: row.languages.split(',')
+    }));
   },
 };
 

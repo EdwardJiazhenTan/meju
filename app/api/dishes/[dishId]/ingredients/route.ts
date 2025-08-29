@@ -5,7 +5,7 @@ import { AuthHelper, requireAuth } from "@/lib/auth";
 // Get all ingredients for a specific dish
 export async function GET(
   request: NextRequest,
-  { params }: { params: { dishId: string } }
+  { params }: { params: Promise<{ dishId: string }> }
 ) {
   try {
     const auth = await requireAuth(request);
@@ -16,7 +16,8 @@ export async function GET(
       );
     }
 
-    const dishId = parseInt(params.dishId);
+    const { dishId: dishIdParam } = await params;
+    const dishId = parseInt(dishIdParam);
     if (isNaN(dishId)) {
       return NextResponse.json(
         AuthHelper.createErrorResponse("Invalid dish ID"),
@@ -42,7 +43,7 @@ export async function GET(
     }
 
     // Get dish ingredients
-    const ingredients = ingredientQueries.getDishIngredients(dishId);
+    const ingredients = dishQueries.getDishIngredients(dishId);
 
     return NextResponse.json(
       AuthHelper.createSuccessResponse("Dish ingredients retrieved successfully", {
@@ -65,7 +66,7 @@ export async function GET(
 // Add ingredient to dish
 export async function POST(
   request: NextRequest,
-  { params }: { params: { dishId: string } }
+  { params }: { params: Promise<{ dishId: string }> }
 ) {
   try {
     const auth = await requireAuth(request);
@@ -76,7 +77,8 @@ export async function POST(
       );
     }
 
-    const dishId = parseInt(params.dishId);
+    const { dishId: dishIdParam } = await params;
+    const dishId = parseInt(dishIdParam);
     if (isNaN(dishId)) {
       return NextResponse.json(
         AuthHelper.createErrorResponse("Invalid dish ID"),
@@ -128,7 +130,7 @@ export async function POST(
     }
 
     // Check if ingredient is already in dish
-    const existingIngredient = ingredientQueries.getDishIngredientById(dishId, ingredientId);
+    const existingIngredient = dishQueries.getDishIngredientById(dishId, ingredientId);
     if (existingIngredient) {
       return NextResponse.json(
         AuthHelper.createErrorResponse("Ingredient already exists in this dish. Use PUT to update quantity."),
@@ -137,10 +139,10 @@ export async function POST(
     }
 
     // Add ingredient to dish
-    ingredientQueries.addIngredientToDish(dishId, ingredientId, quantity);
+    dishQueries.addIngredientToDish(dishId, ingredientId, quantity);
 
     // Get updated dish ingredients
-    const updatedIngredients = ingredientQueries.getDishIngredients(dishId);
+    const updatedIngredients = dishQueries.getDishIngredients(dishId);
 
     return NextResponse.json(
       AuthHelper.createSuccessResponse("Ingredient added to dish successfully", {

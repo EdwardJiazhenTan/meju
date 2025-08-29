@@ -7,8 +7,9 @@ const VALID_VISIBILITY = ["private", "shared", "public"] as const;
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { dishId: string } },
+  { params }: { params: Promise<{ dishId: string }> },
 ) {
+  const { dishId } = await params;
   try {
     const auth = await requireAuth(request);
     if (!auth.authenticated || !auth.user) {
@@ -18,8 +19,8 @@ export async function GET(
       );
     }
 
-    const dishId = parseInt(params.dishId);
-    if (isNaN(dishId)) {
+    const dishIdNum = parseInt(dishId);
+    if (isNaN(dishIdNum)) {
       return NextResponse.json(
         AuthHelper.createErrorResponse("Invalid dish ID"),
         { status: 400 },
@@ -27,7 +28,7 @@ export async function GET(
     }
 
     // Get dish from database
-    const dish = dishQueries.getDishById(dishId);
+    const dish = dishQueries.getDishById(dishIdNum);
     if (!dish) {
       return NextResponse.json(
         AuthHelper.createErrorResponse("Dish not found"),
@@ -52,8 +53,10 @@ export async function GET(
     );
   } catch (error) {
     console.error("Error retrieving dish details:", error);
+    console.error("Error details:", error instanceof Error ? error.message : String(error));
+    console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
     return NextResponse.json(
-      AuthHelper.createErrorResponse("Internal server error"),
+      AuthHelper.createErrorResponse(`Internal server error: ${error instanceof Error ? error.message : String(error)}`),
       {
         status: 500,
       },
@@ -64,7 +67,7 @@ export async function GET(
 // Update dish
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { dishId: string } },
+  { params }: { params: Promise<{ dishId: string }> },
 ) {
   try {
     const auth = await requireAuth(request);
@@ -77,8 +80,9 @@ export async function PUT(
       );
     }
 
-    const dishId = parseInt(params.dishId);
-    if (isNaN(dishId)) {
+    const { dishId } = await params;
+    const dishIdNum = parseInt(dishId);
+    if (isNaN(dishIdNum)) {
       return NextResponse.json(
         AuthHelper.createErrorResponse("Invalid dish ID"),
         {
@@ -88,7 +92,7 @@ export async function PUT(
     }
 
     // Check if dish exists and belongs to current user
-    const existingDish = dishQueries.getDishById(dishId);
+    const existingDish = dishQueries.getDishById(dishIdNum);
     if (!existingDish) {
       return NextResponse.json(AuthHelper.createErrorResponse("Dish not found"), {
         status: 404,
@@ -149,7 +153,7 @@ export async function PUT(
     dishQueries.updateDish(dishId, updateData);
 
     // Get updated dish
-    const updatedDish = dishQueries.getDishById(dishId);
+    const updatedDish = dishQueries.getDishById(dishIdNum);
 
     return NextResponse.json(
       AuthHelper.createSuccessResponse("Dish updated successfully", { dish: updatedDish }),
@@ -166,7 +170,7 @@ export async function PUT(
 // Delete dish
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { dishId: string } },
+  { params }: { params: Promise<{ dishId: string }> },
 ) {
   try {
     const auth = await requireAuth(request);
@@ -176,15 +180,16 @@ export async function DELETE(
       });
     }
 
-    const dishId = parseInt(params.dishId);
-    if (isNaN(dishId)) {
+    const { dishId } = await params;
+    const dishIdNum = parseInt(dishId);
+    if (isNaN(dishIdNum)) {
       return NextResponse.json(AuthHelper.createErrorResponse("Invalid dish ID"), {
         status: 400,
       });
     }
 
     // Check if dish exists and belongs to current user
-    const dish = dishQueries.getDishById(dishId);
+    const dish = dishQueries.getDishById(dishIdNum);
     if (!dish) {
       return NextResponse.json(AuthHelper.createErrorResponse("Dish not found"), {
         status: 404,

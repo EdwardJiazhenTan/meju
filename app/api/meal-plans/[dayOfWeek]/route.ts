@@ -5,7 +5,7 @@ import { AuthHelper, requireAuth } from "@/lib/auth";
 // Add dish to specific day's meal plan
 export async function POST(
   request: NextRequest,
-  { params }: { params: { dayOfWeek: string } }
+  { params }: { params: Promise<{ dayOfWeek: string }> }
 ) {
   try {
     const auth = await requireAuth(request);
@@ -16,7 +16,8 @@ export async function POST(
       );
     }
 
-    const dayOfWeek = parseInt(params.dayOfWeek);
+    const { dayOfWeek: dayOfWeekParam } = await params;
+    const dayOfWeek = parseInt(dayOfWeekParam);
     if (isNaN(dayOfWeek) || dayOfWeek < 1 || dayOfWeek > 7) {
       return NextResponse.json(
         AuthHelper.createErrorResponse("Invalid day of week (must be 1-7)"),

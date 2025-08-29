@@ -7,7 +7,7 @@ const VALID_TAGS = ["drink", "dessert", "vegetable", "meat", "carbohydrate"] as 
 // Get all tags for a specific dish
 export async function GET(
   request: NextRequest,
-  { params }: { params: { dishId: string } }
+  { params }: { params: Promise<{ dishId: string }> }
 ) {
   try {
     const auth = await requireAuth(request);
@@ -18,7 +18,8 @@ export async function GET(
       );
     }
 
-    const dishId = parseInt(params.dishId);
+    const { dishId: dishIdParam } = await params;
+    const dishId = parseInt(dishIdParam);
     if (isNaN(dishId)) {
       return NextResponse.json(
         AuthHelper.createErrorResponse("Invalid dish ID"),
@@ -67,7 +68,7 @@ export async function GET(
 // Add tag to dish
 export async function POST(
   request: NextRequest,
-  { params }: { params: { dishId: string } }
+  { params }: { params: Promise<{ dishId: string }> }
 ) {
   try {
     const auth = await requireAuth(request);
@@ -78,7 +79,8 @@ export async function POST(
       );
     }
 
-    const dishId = parseInt(params.dishId);
+    const { dishId: dishIdParam } = await params;
+    const dishId = parseInt(dishIdParam);
     if (isNaN(dishId)) {
       return NextResponse.json(
         AuthHelper.createErrorResponse("Invalid dish ID"),

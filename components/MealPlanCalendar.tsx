@@ -1,16 +1,18 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useImperativeHandle, forwardRef } from "react";
+import { useTranslations } from 'next-intl';
 import { ApiClient } from "@/lib/api";
+import DishView from "./DishView";
 
-const DAYS = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
+const DAY_KEYS = [
+  "monday",
+  "tuesday", 
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
 ];
 const MEALS = ["breakfast", "lunch", "dinner", "dessert"];
 const MEAL_ICONS = {
@@ -35,11 +37,17 @@ interface MealPlanCalendarProps {
   onMealClick: (day: number, mealType: string) => void;
 }
 
-export default function MealPlanCalendar({
+export interface MealPlanCalendarRef {
+  refreshMealPlan: () => Promise<void>;
+}
+
+const MealPlanCalendar = forwardRef<MealPlanCalendarRef, MealPlanCalendarProps>(function MealPlanCalendar({
   onMealClick,
-}: MealPlanCalendarProps) {
+}, ref) {
+  const t = useTranslations('mealPlan');
   const [mealPlan, setMealPlan] = useState<MealPlanData>({});
   const [loading, setLoading] = useState(true);
+  const [selectedDishId, setSelectedDishId] = useState<string | null>(null);
 
   useEffect(() => {
     loadMealPlan();
@@ -58,6 +66,15 @@ export default function MealPlanCalendar({
     }
   };
 
+  const refreshMealPlan = async () => {
+    setLoading(true);
+    await loadMealPlan();
+  };
+
+  useImperativeHandle(ref, () => ({
+    refreshMealPlan,
+  }));
+
   const handleMealClick = (dayIndex: number, mealType: string) => {
     onMealClick(dayIndex + 1, mealType); // Convert to 1-based indexing for API
   };
@@ -70,31 +87,41 @@ export default function MealPlanCalendar({
       <div
         key={mealType}
         onClick={() => handleMealClick(dayIndex, mealType)}
-        className="p-3 border border-gray-200 rounded-md cursor-pointer hover:bg-gray-50 hover:border-gray-300 transition-colors min-h-[60px]"
+        className="p-4 border border-border rounded-lg cursor-pointer hover:bg-muted hover:border-muted-foreground transition-colors h-[180px] shadow-sm hover:shadow-md flex flex-col"
       >
-        <div className="flex items-center space-x-2 mb-2">
-          <span className="text-sm font-medium text-black capitalize">
-            {mealType}
+        <div className="flex items-center space-x-2 mb-3">
+          <span className="text-base font-semibold text-foreground capitalize">
+            {t(mealType as keyof any)}
           </span>
         </div>
 
-        <div className="space-y-1">
+        <div className="flex-1 flex flex-col space-y-2 overflow-hidden">
           {mealDishes.length > 0 ? (
-            mealDishes.map((dish, idx) => (
-              <div
-                key={idx}
-                className="text-xs text-black bg-blue-50 px-2 py-1 rounded"
-              >
-                {dish.dish_name}
-                {dish.serving_size !== 1 && (
-                  <span className="text-black ml-1">
-                    ({dish.serving_size}x)
-                  </span>
-                )}
-              </div>
-            ))
+            <div className="flex-1 space-y-2 overflow-y-auto">
+              {mealDishes.map((dish, idx) => (
+                <div
+                  key={idx}
+                  className="text-sm text-foreground bg-primary/10 px-3 py-2 rounded-lg cursor-pointer hover:bg-primary/20 transition-colors border border-primary/20 hover:border-primary/30 flex-shrink-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedDishId(dish.dish_id.toString());
+                  }}
+                >
+                  <div className="font-medium truncate">{dish.dish_name}</div>
+                  {dish.serving_size !== 1 && (
+                    <div className="text-xs text-foreground opacity-75 mt-1">
+                      Serving: {dish.serving_size}x
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           ) : (
-            <div className="text-xs text-black italic">Click to add meal</div>
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-sm text-foreground opacity-60 italic text-center">
+                {t('clickToAdd')}
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -104,28 +131,47 @@ export default function MealPlanCalendar({
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="text-black">Loading meal plan...</div>
+        <div className="text-foreground">{t('loading')}</div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white">
-      <div className="grid grid-cols-7 gap-4">
-        {DAYS.map((day, dayIndex) => (
-          <div key={day} className="space-y-4">
-            <div className="text-center">
-              <h3 className="font-semibold text-black">{day}</h3>
-              <div className="text-xs text-black">Day {dayIndex + 1}</div>
+    <div className="bg-card">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-6">
+        {DAY_KEYS.map((dayKey, dayIndex) => (
+          <div key={dayKey} className="space-y-5">
+            <div className="text-center bg-muted/50 rounded-lg py-3 px-2">
+              <h3 className="font-bold text-foreground text-lg">{t(dayKey as keyof any)}</h3>
+              <div className="text-sm text-foreground opacity-70">Day {dayIndex + 1}</div>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               {MEALS.map((mealType) => renderMealSlot(dayIndex, mealType))}
             </div>
           </div>
         ))}
       </div>
+
+      {/* Dish View Modal */}
+      {selectedDishId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background rounded-lg max-w-5xl max-h-[90vh] overflow-y-auto w-full relative">
+            <button
+              onClick={() => setSelectedDishId(null)}
+              className="absolute top-4 right-4 z-10 bg-background border border-border rounded-full w-8 h-8 flex items-center justify-center hover:bg-muted transition-colors"
+            >
+              ✕
+            </button>
+            <div className="p-2">
+              <DishView dishId={selectedDishId} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-}
+});
+
+export default MealPlanCalendar;
 

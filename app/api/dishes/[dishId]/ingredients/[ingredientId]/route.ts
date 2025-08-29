@@ -5,7 +5,7 @@ import { AuthHelper, requireAuth } from "@/lib/auth";
 // Update ingredient quantity in dish
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { dishId: string; ingredientId: string } }
+  { params }: { params: Promise<{ dishId: string; ingredientId: string }> }
 ) {
   try {
     const auth = await requireAuth(request);
@@ -16,8 +16,9 @@ export async function PUT(
       );
     }
 
-    const dishId = parseInt(params.dishId);
-    const ingredientId = parseInt(params.ingredientId);
+    const { dishId: dishIdParam, ingredientId: ingredientIdParam } = await params;
+    const dishId = parseInt(dishIdParam);
+    const ingredientId = parseInt(ingredientIdParam);
 
     if (isNaN(dishId) || isNaN(ingredientId)) {
       return NextResponse.json(
@@ -43,7 +44,7 @@ export async function PUT(
     }
 
     // Check if ingredient exists in dish
-    const existingIngredient = ingredientQueries.getDishIngredientById(dishId, ingredientId);
+    const existingIngredient = dishQueries.getDishIngredientById(dishId, ingredientId);
     if (!existingIngredient) {
       return NextResponse.json(
         AuthHelper.createErrorResponse("Ingredient not found in this dish"),
@@ -63,7 +64,7 @@ export async function PUT(
     }
 
     // Update ingredient quantity
-    ingredientQueries.updateDishIngredientQuantity(dishId, ingredientId, quantity);
+    dishQueries.updateDishIngredientQuantity(dishId, ingredientId, quantity);
 
     // Get updated ingredient details
     const ingredient = ingredientQueries.getIngredientById(ingredientId);
@@ -92,7 +93,7 @@ export async function PUT(
 // Remove ingredient from dish
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { dishId: string; ingredientId: string } }
+  { params }: { params: Promise<{ dishId: string; ingredientId: string }> }
 ) {
   try {
     const auth = await requireAuth(request);
@@ -103,8 +104,9 @@ export async function DELETE(
       );
     }
 
-    const dishId = parseInt(params.dishId);
-    const ingredientId = parseInt(params.ingredientId);
+    const { dishId: dishIdParam, ingredientId: ingredientIdParam } = await params;
+    const dishId = parseInt(dishIdParam);
+    const ingredientId = parseInt(ingredientIdParam);
 
     if (isNaN(dishId) || isNaN(ingredientId)) {
       return NextResponse.json(
@@ -130,7 +132,7 @@ export async function DELETE(
     }
 
     // Check if ingredient exists in dish
-    const existingIngredient = ingredientQueries.getDishIngredientById(dishId, ingredientId);
+    const existingIngredient = dishQueries.getDishIngredientById(dishId, ingredientId);
     if (!existingIngredient) {
       return NextResponse.json(
         AuthHelper.createErrorResponse("Ingredient not found in this dish"),
@@ -139,7 +141,7 @@ export async function DELETE(
     }
 
     // Remove ingredient from dish
-    ingredientQueries.removeIngredientFromDish(dishId, ingredientId);
+    dishQueries.removeIngredientFromDish(dishId, ingredientId);
 
     // Get ingredient details for response
     const ingredient = ingredientQueries.getIngredientById(ingredientId);

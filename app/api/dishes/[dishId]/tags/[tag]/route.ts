@@ -7,7 +7,7 @@ const VALID_TAGS = ["drink", "dessert", "vegetable", "meat", "carbohydrate"] as 
 // Remove specific tag from dish
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { dishId: string; tag: string } }
+  { params }: { params: Promise<{ dishId: string; tag: string }> }
 ) {
   try {
     const auth = await requireAuth(request);
@@ -18,8 +18,8 @@ export async function DELETE(
       );
     }
 
-    const dishId = parseInt(params.dishId);
-    const { tag } = params;
+    const { dishId: dishIdParam, tag } = await params;
+    const dishId = parseInt(dishIdParam);
 
     if (isNaN(dishId)) {
       return NextResponse.json(

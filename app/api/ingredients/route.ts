@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, unit, category } = body;
+    const { name, unit, category, calories_per_unit } = body;
 
     // Validation
     if (!name) {
@@ -88,9 +88,11 @@ export async function POST(request: NextRequest) {
 
     // Create ingredient
     const ingredientData = {
+      ingredient_key: name.toLowerCase().trim().replace(/\s+/g, '_'),
       name: name.toLowerCase().trim(),
       unit: unit || null,
       category: category || null,
+      calories_per_unit: calories_per_unit || null,
     };
 
     const result = ingredientQueries.createIngredient(ingredientData);
