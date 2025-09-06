@@ -1,6 +1,6 @@
 // API client for frontend-backend communication
 
-const API_BASE = '/api';
+const API_BASE = "/api";
 
 interface User {
   user_id: number;
@@ -49,37 +49,37 @@ export class ApiClient {
 
   static setToken(token: string) {
     this.token = token;
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('auth-token', token);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("auth-token", token);
     }
   }
 
   static getToken(): string | null {
     if (this.token) return this.token;
-    
-    if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('auth-token');
+
+    if (typeof window !== "undefined") {
+      this.token = localStorage.getItem("auth-token");
     }
     return this.token;
   }
 
   static clearToken() {
     this.token = null;
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('auth-token');
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("auth-token");
     }
   }
 
   private static async makeRequest<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
   ): Promise<ApiResponse<T>> {
     const token = this.getToken();
-    
+
     const config: RequestInit = {
       headers: {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
         ...options.headers,
       },
       ...options,
@@ -90,18 +90,18 @@ export class ApiClient {
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('API Error:', error);
+      console.error("API Error:", error);
       return {
         success: false,
-        message: 'Network error occurred',
+        message: "Network error occurred",
       };
     }
   }
 
   // Authentication
   static async login(email: string, password: string) {
-    const response = await this.makeRequest<{ user: User }>('/auth/login', {
-      method: 'POST',
+    const response = await this.makeRequest<{ user: User }>("/auth/login", {
+      method: "POST",
       body: JSON.stringify({ email, password }),
     });
 
@@ -118,8 +118,8 @@ export class ApiClient {
     username?: string;
     displayName?: string;
   }) {
-    const response = await this.makeRequest<{ user: User }>('/auth/register', {
-      method: 'POST',
+    const response = await this.makeRequest<{ user: User }>("/auth/register", {
+      method: "POST",
       body: JSON.stringify(userData),
     });
 
@@ -131,12 +131,12 @@ export class ApiClient {
   }
 
   static async getCurrentUser() {
-    return this.makeRequest<{ user: User }>('/auth/me');
+    return this.makeRequest<{ user: User }>("/auth/me");
   }
 
   // Dishes
   static async getUserDishes() {
-    return this.makeRequest<{ dishes: Dish[] }>('/dishes');
+    return this.makeRequest<{ dishes: Dish[] }>("/dishes");
   }
 
   static async getDishById(dishId: number) {
@@ -149,6 +149,34 @@ export class ApiClient {
 
   static async getDishTags(dishId: number) {
     return this.makeRequest(`/dishes/${dishId}/tags`);
+  }
+
+  static async getDish(dishId: string | number) {
+    const id = typeof dishId === "string" ? dishId : dishId.toString();
+    // Get both dish data and ingredients in parallel
+    const [dishResponse, ingredientsResponse, tagsResponse] = await Promise.all(
+      [
+        this.makeRequest<{ dish: Dish }>(`/dishes/${id}`),
+        this.makeRequest<{ ingredients: any[] }>(`/dishes/${id}/ingredients`),
+        this.makeRequest<{ tags: string[] }>(`/dishes/${id}/tags`),
+      ],
+    );
+
+    if (dishResponse.success) {
+      return {
+        success: true,
+        message: dishResponse.message,
+        data: {
+          dish: dishResponse.data?.dish,
+          ingredients: ingredientsResponse.success
+            ? ingredientsResponse.data?.ingredients || []
+            : [],
+          tags: tagsResponse.success ? tagsResponse.data?.tags || [] : [],
+        },
+      };
+    }
+
+    return dishResponse;
   }
 
   static async createDish(dishData: {
@@ -166,20 +194,25 @@ export class ApiClient {
       quantity: number;
     }>;
   }) {
-    return this.makeRequest<{ dish: Dish }>('/dishes', {
-      method: 'POST',
+    return this.makeRequest<{ dish: Dish }>("/dishes", {
+      method: "POST",
       body: JSON.stringify(dishData),
     });
   }
 
   // Meal Plans
   static async getMealPlan() {
-    return this.makeRequest<{ mealPlan: MealPlanData }>('/meal-plans');
+    return this.makeRequest<{ mealPlan: MealPlanData }>("/meal-plans");
   }
 
-  static async addDishToMealPlan(dayOfWeek: number, mealType: string, dishId: number, servingSize: number = 1.0) {
+  static async addDishToMealPlan(
+    dayOfWeek: number,
+    mealType: string,
+    dishId: number,
+    servingSize: number = 1.0,
+  ) {
     return this.makeRequest(`/meal-plans/${dayOfWeek}`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify({
         dishId,
         mealType,
@@ -188,9 +221,27 @@ export class ApiClient {
     });
   }
 
+  static async addCustomizedDishToMealPlan(
+    dayOfWeek: number,
+    mealType: string,
+    dishId: number,
+    servingSize: number = 1.0,
+    customizations: any,
+  ) {
+    return this.makeRequest(`/meal-plans/${dayOfWeek}`, {
+      method: "POST",
+      body: JSON.stringify({
+        dishId,
+        mealType,
+        servingSize,
+        customizations,
+      }),
+    });
+  }
+
   // Ingredients
   static async getAllIngredients() {
-    return this.makeRequest('/ingredients');
+    return this.makeRequest("/ingredients");
   }
 
   static async searchIngredients(searchTerm: string) {
@@ -203,8 +254,8 @@ export class ApiClient {
     category?: string;
     calories_per_unit?: number;
   }) {
-    return this.makeRequest('/ingredients', {
-      method: 'POST',
+    return this.makeRequest("/ingredients", {
+      method: "POST",
       body: JSON.stringify(ingredientData),
     });
   }

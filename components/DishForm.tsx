@@ -207,10 +207,10 @@ export default function DishForm() {
         special: formData.special,
         url: formData.url || undefined,
         visibility: formData.visibility,
-        ingredients: dishIngredients.map(ing => ({
+        ingredients: dishIngredients.map((ing) => ({
           ingredient_id: ing.ingredient_id,
-          quantity: ing.quantity
-        }))
+          quantity: ing.quantity,
+        })),
       };
 
       const response = await ApiClient.createDish(dishData);
@@ -279,7 +279,7 @@ export default function DishForm() {
                 htmlFor="description"
                 className="block text-sm font-medium text-card-foreground mb-2"
               >
-                {t("dish.description")}
+                {t("dish.instructions")}
               </label>
               <textarea
                 id="description"
@@ -287,7 +287,7 @@ export default function DishForm() {
                 rows={6}
                 value={formData.description}
                 onChange={handleInputChange}
-                placeholder={t("dish.descriptionPlaceholder")}
+                placeholder={t("dish.instructionsPlaceholder")}
                 className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-input text-foreground placeholder-muted-foreground"
               />
             </div>
@@ -358,7 +358,6 @@ export default function DishForm() {
             <div className="space-y-6">
               {/* Additional Information */}
               <div className="space-y-4">
-
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label
@@ -539,7 +538,7 @@ export default function DishForm() {
                 </div>
                 <div className="text-right">
                   <div className="text-3xl font-bold text-blue-900 dark:text-blue-100">
-                    {formData.calories || '0'}
+                    {formData.calories || "0"}
                   </div>
                   <div className="text-sm text-blue-600 dark:text-blue-300">
                     calories
