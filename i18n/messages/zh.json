@@ -31,6 +31,8 @@
     "namePlaceholder": "例如：意大利面条",
     "description": "描述",
     "descriptionPlaceholder": "简要描述这道菜...",
+    "instructions": "制作步骤",
+    "instructionsPlaceholder": "详细的烹饪制作步骤...",
     "mealType": "餐食类型",
     "selectMealType": "选择餐食类型",
     "searchIngredients": "搜索配料...",

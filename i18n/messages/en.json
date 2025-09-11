@@ -31,6 +31,8 @@
     "namePlaceholder": "e.g., Spaghetti Carbonara",
     "description": "Description",
     "descriptionPlaceholder": "Brief description of the dish...",
+    "instructions": "Instructions",
+    "instructionsPlaceholder": "Step-by-step cooking instructions...",
     "mealType": "Meal Type",
     "selectMealType": "Select meal type",
     "searchIngredients": "Search ingredients...",
