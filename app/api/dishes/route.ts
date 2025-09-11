@@ -1,111 +1,87 @@
-import { NextRequest, NextResponse } from "next/server";
-import { dishQueries } from "@/lib/database";
-import { AuthHelper, requireAuth } from "@/lib/auth";
+import { NextRequest, NextResponse } from 'next/server';
+import { query } from '@/lib/database';
+import { CreateDishData, Dish } from '@/types';
 
-const DEFAULT_VISIBILITY = "private" as const;
-
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth(request);
-    if (!auth.authenticated || !auth.user) {
+    const body: CreateDishData = await request.json();
+
+    const {
+      name,
+      cooking_steps,
+      category_id,
+      base_calories,
+      preparation_time,
+      servings,
+      is_customizable,
+      ingredients
+    } = body;
+
+    if (!name || !servings) {
       return NextResponse.json(
-        AuthHelper.createErrorResponse("Login required"),
+        { error: 'Name and servings are required' },
+        { status: 400 }
       );
     }
 
-    const dishes = dishQueries.getUserDishes(auth.user.userId);
-    return NextResponse.json(
-      AuthHelper.createSuccessResponse("Successfully fetched data", { dishes }),
-      { status: 200 },
-    );
+    const client = await query('BEGIN', []);
+
+    try {
+      const dishResult = await query(
+        `INSERT INTO dishes (name, cooking_steps, category_id, base_calories, preparation_time, servings, is_customizable)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [name, cooking_steps, category_id, base_calories, preparation_time, servings, is_customizable]
+      );
+
+      const dish = dishResult.rows[0];
+
+      if (ingredients && ingredients.length > 0) {
+        for (const ingredient of ingredients) {
+          await query(
+            `INSERT INTO dish_ingredients (dish_id, ingredient_id, quantity, unit_id, is_optional)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [dish.id, ingredient.ingredient_id, ingredient.quantity, ingredient.unit_id, ingredient.is_optional]
+          );
+        }
+      }
+
+      await query('COMMIT', []);
+
+      return NextResponse.json({ dish }, { status: 201 });
+
+    } catch (error) {
+      await query('ROLLBACK', []);
+      throw error;
+    }
+
   } catch (error) {
-    console.error("Error fetching dishes:", error);
+    console.error('Error creating dish:', error);
     return NextResponse.json(
-      AuthHelper.createErrorResponse("Internal server error"),
-      { status: 500 },
+      { error: 'Failed to create dish' },
+      { status: 500 }
     );
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function GET() {
   try {
-    const auth = await requireAuth(request);
-    if (!auth.authenticated || !auth.user) {
-      return NextResponse.json(
-        AuthHelper.createErrorResponse("Login required"),
-        { status: 401 },
-      );
-    }
-
-    const body = await request.json();
-    const {
-      name,
-      description,
-      calories,
-      meal,
-      special,
-      url,
-      prep_time,
-      cook_time,
-      visibility,
-      ingredients,
-    } = body;
-
-    if (!name || !meal) {
-      return NextResponse.json(
-        AuthHelper.createErrorResponse("Name and meal is required"),
-        { status: 400 },
-      );
-    }
-
-    const validMeals = ["breakfast", "lunch", "dinner", "dessert"];
-    if (!validMeals.includes(meal)) {
-      return NextResponse.json(
-        AuthHelper.createErrorResponse("Invalid meal type"),
-        { status: 400 },
-      );
-    }
-
-    // Create dish data
-    const dishData = {
-      owner_id: auth.user.userId,
-      name,
-      description: description || null,
-      calories: calories || null,
-      meal,
-      special: special || false,
-      url: url || null,
-      prep_time: prep_time || null,
-      cook_time: cook_time || null,
-      visibility: visibility || DEFAULT_VISIBILITY, // Default to private
-    };
-
-    const result = dishQueries.createDish(dishData);
-    const dishId = result.lastInsertRowid as number;
-    
-    // Add ingredients to the dish if provided
-    if (ingredients && Array.isArray(ingredients)) {
-      for (const ingredient of ingredients) {
-        if (ingredient.ingredient_id && ingredient.quantity > 0) {
-          dishQueries.addIngredientToDish(dishId, ingredient.ingredient_id, ingredient.quantity);
-        }
-      }
-    }
-    
-    const newDish = dishQueries.getDishById(dishId);
-    return NextResponse.json(
-      AuthHelper.createSuccessResponse("Dish created successfully", {
-        dish: newDish,
-      }),
-      { status: 201 },
+    const result = await query(
+      `SELECT d.*, c.name as category_name
+       FROM dishes d
+       LEFT JOIN categories c ON d.category_id = c.id
+       ORDER BY d.created_at DESC`
     );
+
+    const dishes = result.rows;
+
+    return NextResponse.json({ dishes });
+
   } catch (error) {
-    console.error("Error creating dish:", error);
-    console.error("Error details:", error instanceof Error ? error.message : String(error));
-    console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
+    console.error('Error fetching dishes:', error);
     return NextResponse.json(
-      AuthHelper.createErrorResponse(`Internal server error: ${error instanceof Error ? error.message : String(error)}`),
-      { status: 500 },
+      { error: 'Failed to fetch dishes' },
+      { status: 500 }
     );
   }
 }

@@ -1,116 +1,86 @@
-import { NextRequest, NextResponse } from "next/server";
-import { ingredientQueries } from "@/lib/database";
-import { AuthHelper, requireAuth } from "@/lib/auth";
+import { NextRequest, NextResponse } from 'next/server';
+import { query } from '@/lib/database';
+import { Ingredient } from '@/types';
 
-// Get all ingredients or search ingredients
-export async function GET(request: NextRequest) {
+interface CreateIngredientData {
+  name: string;
+  calories_per_unit?: number;
+  default_unit_id?: number;
+  category?: string;
+}
+
+export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth(request);
-    if (!auth.authenticated || !auth.user) {
+    const body: CreateIngredientData = await request.json();
+    
+    const { name, calories_per_unit, default_unit_id, category } = body;
+
+    if (!name) {
       return NextResponse.json(
-        AuthHelper.createErrorResponse("Login required"),
-        { status: 401 }
+        { error: 'Name is required' },
+        { status: 400 }
       );
     }
 
-    const url = new URL(request.url);
-    const searchQuery = url.searchParams.get("q");
-    const category = url.searchParams.get("category");
-
-    let ingredients;
-
-    if (searchQuery) {
-      // Search ingredients by name
-      ingredients = ingredientQueries.searchIngredients(searchQuery);
-    } else if (category) {
-      // Filter by category
-      ingredients = ingredientQueries.getIngredientsByCategory(category);
-    } else {
-      // Get all ingredients
-      ingredients = ingredientQueries.getAllIngredients();
-    }
-
-    return NextResponse.json(
-      AuthHelper.createSuccessResponse("Ingredients retrieved successfully", { 
-        ingredients,
-        total: ingredients.length 
-      }),
-      { status: 200 }
+    const result = await query(
+      `INSERT INTO ingredients (name, calories_per_unit, default_unit_id, category)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [name, calories_per_unit, default_unit_id, category]
     );
+
+    const ingredient = result.rows[0];
+
+    return NextResponse.json({ ingredient }, { status: 201 });
+
   } catch (error) {
-    console.error("Error retrieving ingredients:", error);
+    console.error('Error creating ingredient:', error);
     return NextResponse.json(
-      AuthHelper.createErrorResponse("Internal server error"),
+      { error: 'Failed to create ingredient' },
       { status: 500 }
     );
   }
 }
 
-// Create new ingredient (admin only for now)
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const auth = await requireAuth(request);
-    if (!auth.authenticated || !auth.user) {
-      return NextResponse.json(
-        AuthHelper.createErrorResponse("Login required"),
-        { status: 401 }
-      );
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get('search');
+    const category = searchParams.get('category');
+
+    let queryText = `
+      SELECT i.*, iu.name as unit_name, iu.abbreviation as unit_abbreviation
+      FROM ingredients i
+      LEFT JOIN ingredient_units iu ON i.default_unit_id = iu.id
+      WHERE 1=1
+    `;
+    
+    const params: any[] = [];
+    let paramCount = 0;
+
+    if (search) {
+      paramCount++;
+      queryText += ` AND i.name ILIKE $${paramCount}`;
+      params.push(`%${search}%`);
     }
 
-    const body = await request.json();
-    const { name, unit, category, calories_per_unit } = body;
-
-    // Validation
-    if (!name) {
-      return NextResponse.json(
-        AuthHelper.createErrorResponse("Ingredient name is required"),
-        { status: 400 }
-      );
+    if (category) {
+      paramCount++;
+      queryText += ` AND i.category = $${paramCount}`;
+      params.push(category);
     }
 
-    // Validate category if provided
-    const validCategories = ["vegetable", "meat", "dairy", "grain", "spice", "fruit", "other"];
-    if (category && !validCategories.includes(category)) {
-      return NextResponse.json(
-        AuthHelper.createErrorResponse("Invalid ingredient category"),
-        { status: 400 }
-      );
-    }
+    queryText += ' ORDER BY i.name ASC';
 
-    // Check if ingredient already exists
-    const existingIngredient = ingredientQueries.getIngredientByName(name);
-    if (existingIngredient) {
-      return NextResponse.json(
-        AuthHelper.createErrorResponse("Ingredient already exists"),
-        { status: 409 }
-      );
-    }
+    const result = await query(queryText, params);
+    const ingredients = result.rows;
 
-    // Create ingredient
-    const ingredientData = {
-      ingredient_key: name.toLowerCase().trim().replace(/\s+/g, '_'),
-      name: name.toLowerCase().trim(),
-      unit: unit || null,
-      category: category || null,
-      calories_per_unit: calories_per_unit || null,
-    };
+    return NextResponse.json({ ingredients });
 
-    const result = ingredientQueries.createIngredient(ingredientData);
-    const ingredientId = result.lastInsertRowid as number;
-
-    // Get created ingredient
-    const newIngredient = ingredientQueries.getIngredientById(ingredientId);
-
-    return NextResponse.json(
-      AuthHelper.createSuccessResponse("Ingredient created successfully", {
-        ingredient: newIngredient,
-      }),
-      { status: 201 }
-    );
   } catch (error) {
-    console.error("Error creating ingredient:", error);
+    console.error('Error fetching ingredients:', error);
     return NextResponse.json(
-      AuthHelper.createErrorResponse("Internal server error"),
+      { error: 'Failed to fetch ingredients' },
       { status: 500 }
     );
   }

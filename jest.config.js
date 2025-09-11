@@ -19,6 +19,9 @@ module.exports = {
     '<rootDir>/.next/',
     '<rootDir>/node_modules/'
   ],
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/$1'
+  },
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', {
       tsconfig: 'tsconfig.json'

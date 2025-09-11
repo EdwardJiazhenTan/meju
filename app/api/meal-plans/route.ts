@@ -1,34 +1,201 @@
-import { NextRequest, NextResponse } from "next/server";
-import { mealPlanQueries } from "@/lib/database";
-import { AuthHelper, requireAuth } from "@/lib/auth";
+import { NextRequest, NextResponse } from 'next/server';
+import { query } from '@/lib/database';
+import { MealPlan } from '@/types/database';
 
-// Get user's weekly meal plan
-export async function GET(request: NextRequest) {
+interface CreateMealPlanData {
+  date: string; // YYYY-MM-DD format
+  meal_name: string; // breakfast, lunch, dinner, etc.
+}
+
+export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth(request);
-    if (!auth.authenticated || !auth.user) {
+    const body: CreateMealPlanData = await request.json();
+    const { date, meal_name } = body;
+
+    // Validate required fields
+    if (!date || !meal_name) {
       return NextResponse.json(
-        AuthHelper.createErrorResponse("Login required"),
-        { status: 401 }
+        { error: 'Date and meal_name are required' },
+        { status: 400 }
       );
     }
 
-    // Get user's meal plan
-    const mealPlan = mealPlanQueries.getUserMealPlan(auth.user.userId);
+    // Validate date format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return NextResponse.json(
+        { error: 'Date must be in YYYY-MM-DD format' },
+        { status: 400 }
+      );
+    }
 
-    // Transform data into a more useful structure
-    const organizedPlan = mealPlanQueries.organizeMealPlan(mealPlan);
-
-    return NextResponse.json(
-      AuthHelper.createSuccessResponse("Meal plan retrieved successfully", {
-        mealPlan: organizedPlan,
-      }),
-      { status: 200 }
+    // Check if meal plan already exists for this date and meal
+    const existingCheck = await query(
+      'SELECT id FROM meal_plans WHERE date = $1 AND meal_name = $2',
+      [date, meal_name]
     );
+
+    if (existingCheck.rows.length > 0) {
+      return NextResponse.json(
+        { error: 'Meal plan already exists for this date and meal' },
+        { status: 409 }
+      );
+    }
+
+    // Create new meal plan
+    const result = await query(
+      `INSERT INTO meal_plans (date, meal_name)
+       VALUES ($1, $2)
+       RETURNING *`,
+      [date, meal_name]
+    );
+
+    const mealPlan = result.rows[0];
+
+    return NextResponse.json({ mealPlan }, { status: 201 });
+
   } catch (error) {
-    console.error("Error retrieving meal plan:", error);
+    console.error('Error creating meal plan:', error);
     return NextResponse.json(
-      AuthHelper.createErrorResponse("Internal server error"),
+      { error: 'Failed to create meal plan' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const date = searchParams.get('date');
+    const meal_name = searchParams.get('meal_name');
+
+    let queryText = 'SELECT * FROM meal_plans WHERE 1=1';
+    const params: any[] = [];
+    let paramCount = 0;
+
+    if (date) {
+      paramCount++;
+      queryText += ` AND date = $${paramCount}`;
+      params.push(date);
+    }
+
+    if (meal_name) {
+      paramCount++;
+      queryText += ` AND meal_name = $${paramCount}`;
+      params.push(meal_name);
+    }
+
+    queryText += ' ORDER BY date ASC, meal_name ASC';
+
+    const result = await query(queryText, params);
+    const mealPlans = result.rows;
+
+    return NextResponse.json({ mealPlans });
+
+  } catch (error) {
+    console.error('Error fetching meal plans:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch meal plans' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { id, date, meal_name } = body;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Meal plan ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Check if meal plan exists
+    const existingCheck = await query('SELECT id FROM meal_plans WHERE id = $1', [id]);
+    if (existingCheck.rows.length === 0) {
+      return NextResponse.json(
+        { error: 'Meal plan not found' },
+        { status: 404 }
+      );
+    }
+
+    // Build dynamic update query
+    const updates = [];
+    const params = [];
+    let paramCount = 0;
+
+    if (date) {
+      paramCount++;
+      updates.push(`date = $${paramCount}`);
+      params.push(date);
+    }
+
+    if (meal_name) {
+      paramCount++;
+      updates.push(`meal_name = $${paramCount}`);
+      params.push(meal_name);
+    }
+
+    if (updates.length === 0) {
+      return NextResponse.json(
+        { error: 'No fields to update' },
+        { status: 400 }
+      );
+    }
+
+    paramCount++;
+    params.push(id);
+
+    const result = await query(
+      `UPDATE meal_plans SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`,
+      params
+    );
+
+    const mealPlan = result.rows[0];
+
+    return NextResponse.json({ mealPlan });
+
+  } catch (error) {
+    console.error('Error updating meal plan:', error);
+    return NextResponse.json(
+      { error: 'Failed to update meal plan' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Meal plan ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Check if meal plan exists
+    const existingCheck = await query('SELECT id FROM meal_plans WHERE id = $1', [id]);
+    if (existingCheck.rows.length === 0) {
+      return NextResponse.json(
+        { error: 'Meal plan not found' },
+        { status: 404 }
+      );
+    }
+
+    // Delete meal plan (this will cascade to meal_items if you have foreign key constraints)
+    await query('DELETE FROM meal_plans WHERE id = $1', [parseInt(id)]);
+
+    return NextResponse.json({ message: 'Meal plan deleted successfully' });
+
+  } catch (error) {
+    console.error('Error deleting meal plan:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete meal plan' },
       { status: 500 }
     );
   }

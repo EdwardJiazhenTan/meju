@@ -1,70 +1,91 @@
-# Meju
+# Meal Planner 🍽️
 
-A multilingual meal planning application built with Next.js that helps users create, manage, and share dishes while planning weekly meals.
+A Next.js-based family meal planning system with customizable dishes and automatic shopping lists.
 
 ## Features
 
-- **Multilingual Support**: English and Chinese localization
-- **Dish Management**: Create, edit, and share dishes with ingredients and nutritional info
-- **Weekly Meal Planning**: Visual calendar interface for planning meals across the week
-- **OCR Integration**: Extract text from images using Tesseract.js
-- **User Authentication**: Email and OAuth (Google, GitHub) registration
-- **Ingredient Database**: Comprehensive ingredient library with nutritional data
-- **Dark Mode**: Theme switching capability
+- **Calendar View**: Weekly meal planning with multiple meals per day
+- **Dish Customization**: Ingredient substitution and quantity adjustments
+- **Auto Shopping Lists**: Weekly ingredient calculation
+- **Nutrition Tracking**: Calorie information per dish and meal
+- **Cooking Instructions**: Detailed preparation steps
 
 ## Tech Stack
 
-- **Frontend**: Next.js 15, React 19, TailwindCSS, TypeScript
-- **Backend**: Next.js API Routes, NextAuth.js
-- **Database**: SQLite with Better SQLite3
-- **Internationalization**: next-intl
-- **OCR**: Tesseract.js
-- **Testing**: Jest with integration and unit tests
+- **Frontend**: Next.js 15 + TypeScript + Tailwind CSS
+- **Database**: PostgreSQL (Docker) with JSONB support
+- **Query**: Native pg client
 
-## Getting Started
+## Quick Start
 
 ### Prerequisites
 - Node.js 18+
-- npm or yarn
+- Docker Desktop
 
-### Installation
+### Setup
 
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Set up the database:
-   ```bash
-   node scripts/update-database.mjs
-   ```
-4. Start the development server:
-   ```bash
-   npm run dev
-   ```
+```bash
+# Clone and install
+git clone <repository-url>
+cd meal-planner
+npm install
 
-Visit `http://localhost:3000` to access the application.
+# Start PostgreSQL
+docker run --name meal-planner-db \
+  -e POSTGRES_DB=meal_planner \
+  -e POSTGRES_USER=admin \
+  -e POSTGRES_PASSWORD=password \
+  -p 5432:5432 \
+  -d postgres:15
 
-## Scripts
+# Initialize database
+npm run init-db
 
-- `npm run dev` - Start development server with Turbopack
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run test` - Run test suite
-- `npm run lint` - Run ESLint
+# Start development
+npm run dev
+```
 
-## Database
+Visit http://localhost:3000
 
-The application uses SQLite with a comprehensive schema supporting:
-- Users and OAuth authentication
-- Dishes with ingredients and nutritional information
-- Weekly meal planning with daily slots
-- Dish sharing and visibility controls
-- Full-text search capabilities
+## Commands
 
-## Contributing
+```bash
+# Development
+npm run dev              # Start dev server
+npm run build            # Build for production
 
-1. Create a feature branch: `git checkout -b feature/your-feature`
-2. Make your changes
-3. Run tests: `npm test`
-4. Submit a pull request
+# Database
+npm run start-db         # Start database container
+npm run stop-db          # Stop database container
+npm run init-db          # Initialize database tables
+npm run reset-db         # Reset database (clear all data)
+```
+
+## Database Schema
+
+### Core Tables
+- **categories** - Dish categories (salad, meat, staple, etc.)
+- **dishes** - Dish information (name, steps, calories)
+- **ingredients** - Ingredient library with units and calories
+- **meal_plans** - Date + meal name planning
+- **meal_items** - Selected dishes with JSONB customizations
+
+### Key Features
+- **JSONB customizations** - Flexible dish modifications
+- **automatic shopping list** - Via `weekly_shopping_list` view
+- **nutrition calculation** - Base + custom ingredient calories
+
+## Troubleshooting
+
+```bash
+# Docker issues
+docker ps                # Check containers
+docker logs meal-planner-db  # View logs
+
+# Database connection
+docker exec -it meal-planner-db psql -U admin -d meal_planner
+```
+
+## License
+
+MIT
