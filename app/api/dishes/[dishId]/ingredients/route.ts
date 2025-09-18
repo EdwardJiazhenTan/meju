@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/database';
 import { DishIngredient } from '@/types';
 
+// TODO: params should be awaited before using its properties. 
 interface CreateDishIngredientData {
   ingredient_id: number;
   quantity: number;
@@ -16,7 +17,7 @@ export async function POST(
   try {
     const dishId = parseInt(params.dishId);
     const body: CreateDishIngredientData = await request.json();
-    
+
     const { ingredient_id, quantity, unit_id, is_optional = false } = body;
 
     if (!ingredient_id || !quantity || !unit_id) {

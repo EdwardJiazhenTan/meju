@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/database';
-import { CreateDishData, Dish } from '@/types';
+import { NextRequest, NextResponse } from "next/server";
+import { query } from "@/lib/database";
+import { CreateDishData, Dish } from "@/types";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,24 +14,32 @@ export async function POST(request: NextRequest) {
       preparation_time,
       servings,
       is_customizable,
-      ingredients
+      ingredients,
     } = body;
 
     if (!name || !servings) {
       return NextResponse.json(
-        { error: 'Name and servings are required' },
-        { status: 400 }
+        { error: "Name and servings are required" },
+        { status: 400 },
       );
     }
 
-    const client = await query('BEGIN', []);
+    const client = await query("BEGIN", []);
 
     try {
       const dishResult = await query(
         `INSERT INTO dishes (name, cooking_steps, category_id, base_calories, preparation_time, servings, is_customizable)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING *`,
-        [name, cooking_steps, category_id, base_calories, preparation_time, servings, is_customizable]
+        [
+          name,
+          cooking_steps,
+          category_id,
+          base_calories,
+          preparation_time,
+          servings,
+          is_customizable,
+        ],
       );
 
       const dish = dishResult.rows[0];
@@ -41,47 +49,72 @@ export async function POST(request: NextRequest) {
           await query(
             `INSERT INTO dish_ingredients (dish_id, ingredient_id, quantity, unit_id, is_optional)
              VALUES ($1, $2, $3, $4, $5)`,
-            [dish.id, ingredient.ingredient_id, ingredient.quantity, ingredient.unit_id, ingredient.is_optional]
+            [
+              dish.id,
+              ingredient.ingredient_id,
+              ingredient.quantity,
+              ingredient.unit_id,
+              ingredient.is_optional,
+            ],
           );
         }
       }
 
-      await query('COMMIT', []);
+      await query("COMMIT", []);
 
       return NextResponse.json({ dish }, { status: 201 });
-
     } catch (error) {
-      await query('ROLLBACK', []);
+      await query("ROLLBACK", []);
       throw error;
     }
-
   } catch (error) {
-    console.error('Error creating dish:', error);
+    console.error("Error creating dish:", error);
     return NextResponse.json(
-      { error: 'Failed to create dish' },
-      { status: 500 }
+      { error: "Failed to create dish" },
+      { status: 500 },
     );
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const result = await query(
-      `SELECT d.*, c.name as category_name
-       FROM dishes d
-       LEFT JOIN categories c ON d.category_id = c.id
-       ORDER BY d.created_at DESC`
-    );
+    const { searchParams } = new URL(request.url);
+    const category = searchParams.get("category");
+    const search = searchParams.get("search");
 
+    let queryText = `
+      SELECT d.*, c.name as category_name
+      FROM dishes d
+      LEFT JOIN categories c ON d.category_id = c.id
+      WHERE 1=1
+    `;
+
+    const params: any[] = [];
+    let paramCount = 0;
+
+    if (category) {
+      paramCount++;
+      queryText += ` AND c.name = $${paramCount}`;
+      params.push(category);
+    }
+
+    if (search) {
+      paramCount++;
+      queryText += ` AND (d.name ILIKE $${paramCount} OR d.cooking_steps ILIKE $${paramCount})`;
+      params.push(`%${search}%`);
+    }
+
+    queryText += " ORDER BY d.created_at DESC";
+
+    const result = await query(queryText, params);
     const dishes = result.rows;
 
     return NextResponse.json({ dishes });
-
   } catch (error) {
-    console.error('Error fetching dishes:', error);
+    console.error("Error fetching dishes:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch dishes' },
-      { status: 500 }
+      { error: "Failed to fetch dishes" },
+      { status: 500 },
     );
   }
 }
