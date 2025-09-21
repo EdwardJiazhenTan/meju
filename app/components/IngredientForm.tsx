@@ -33,7 +33,7 @@ export default function IngredientForm({ onSubmit }: IngredientFormProps) {
 
   const fetchUnits = async () => {
     try {
-      const response = await fetch("/api/units");
+      const response = await fetch("/api/ingredient-units");
       const result = await response.json();
       if (response.ok) {
         setAvailableUnits(result.units || []);

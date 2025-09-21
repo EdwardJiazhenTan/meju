@@ -31,7 +31,7 @@ export default function UnitForm({ onSubmit }: UnitFormProps) {
     setSuccess(false);
 
     try {
-      const response = await fetch('/api/units', {
+      const response = await fetch('/api/ingredient-units', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
