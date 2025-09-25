@@ -16,8 +16,8 @@ interface GenerationResult {
   period_type: string;
   start_date: string;
   end_date: string;
-  generated_meal_plans: any[];
-  orders_processed: any[];
+  generated_meal_plans: unknown[];
+  orders_processed: unknown[];
   summary: {
     total_orders: number;
     total_meals_generated: number;
@@ -289,24 +289,26 @@ export default function MenuGenerationPage() {
                       </div>
 
                       <div className="space-y-2">
-                        {mealPlan.dishes.map((dish: any, dishIndex: number) => (
-                          <div
-                            key={dishIndex}
-                            className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded"
-                          >
-                            <span className="font-medium">
-                              {dish.dish_name}
-                            </span>
-                            <div className="text-sm text-gray-600">
-                              {dish.people_count}人
-                              {dish.notes && (
-                                <span className="ml-2 text-gray-500">
-                                  ({dish.notes})
-                                </span>
-                              )}
+                        {(mealPlan.dishes as { name: string }[]).map(
+                          (dish, dishIndex: number) => (
+                            <div
+                              key={dishIndex}
+                              className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded"
+                            >
+                              <span className="font-medium">
+                                {dish.dish_name}
+                              </span>
+                              <div className="text-sm text-gray-600">
+                                {dish.people_count}人
+                                {dish.notes && (
+                                  <span className="ml-2 text-gray-500">
+                                    ({dish.notes})
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ),
+                        )}
                       </div>
                     </div>
                   ))}

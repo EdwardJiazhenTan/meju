@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/database';
-import { CustomizationGroup, CustomizationOption } from '@/types';
+import { NextRequest, NextResponse } from "next/server";
+import { query } from "@/lib/database";
+// import { CustomizationGroup, CustomizationOption } from '@/types';
 
 interface CreateCustomizationGroupData {
   dish_id: number;
   name: string;
-  type: 'single' | 'multiple' | 'quantity';
+  type: "single" | "multiple" | "quantity";
   is_required?: boolean;
   display_order?: number;
   options: {
@@ -20,34 +20,40 @@ interface CreateCustomizationGroupData {
 export async function POST(request: NextRequest) {
   try {
     const body: CreateCustomizationGroupData = await request.json();
-    
-    const { dish_id, name, type, is_required = false, display_order, options } = body;
+
+    const {
+      dish_id,
+      name,
+      type,
+      is_required = false,
+      display_order,
+      options,
+    } = body;
 
     if (!dish_id || !name || !type) {
       return NextResponse.json(
-        { error: 'dish_id, name, and type are required' },
-        { status: 400 }
+        { error: "dish_id, name, and type are required" },
+        { status: 400 },
       );
     }
 
-    if (!['single', 'multiple', 'quantity'].includes(type)) {
+    if (!["single", "multiple", "quantity"].includes(type)) {
       return NextResponse.json(
-        { error: 'type must be single, multiple, or quantity' },
-        { status: 400 }
+        { error: "type must be single, multiple, or quantity" },
+        { status: 400 },
       );
     }
 
     // Check if dish exists
-    const dishCheck = await query('SELECT id FROM dishes WHERE id = $1', [dish_id]);
+    const dishCheck = await query("SELECT id FROM dishes WHERE id = $1", [
+      dish_id,
+    ]);
     if (dishCheck.rows.length === 0) {
-      return NextResponse.json(
-        { error: 'Dish not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Dish not found" }, { status: 404 });
     }
 
     // Start transaction
-    await query('BEGIN');
+    await query("BEGIN");
 
     try {
       // Create customization group
@@ -55,7 +61,7 @@ export async function POST(request: NextRequest) {
         `INSERT INTO customization_groups (dish_id, name, type, is_required, display_order)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING *`,
-        [dish_id, name, type, is_required, display_order]
+        [dish_id, name, type, is_required, display_order],
       );
 
       const group = groupResult.rows[0];
@@ -68,31 +74,39 @@ export async function POST(request: NextRequest) {
             `INSERT INTO customization_options (group_id, ingredient_id, name, default_quantity, unit_id, display_order)
              VALUES ($1, $2, $3, $4, $5, $6)
              RETURNING *`,
-            [group.id, option.ingredient_id, option.name, option.default_quantity, option.unit_id, option.display_order]
+            [
+              group.id,
+              option.ingredient_id,
+              option.name,
+              option.default_quantity,
+              option.unit_id,
+              option.display_order,
+            ],
           );
           createdOptions.push(optionResult.rows[0]);
         }
       }
 
-      await query('COMMIT');
+      await query("COMMIT");
 
-      return NextResponse.json({ 
-        group: {
-          ...group,
-          options: createdOptions
-        }
-      }, { status: 201 });
-
+      return NextResponse.json(
+        {
+          group: {
+            ...group,
+            options: createdOptions,
+          },
+        },
+        { status: 201 },
+      );
     } catch (error) {
-      await query('ROLLBACK');
+      await query("ROLLBACK");
       throw error;
     }
-
   } catch (error) {
-    console.error('Error creating customization group:', error);
+    console.error("Error creating customization group:", error);
     return NextResponse.json(
-      { error: 'Failed to create customization group' },
-      { status: 500 }
+      { error: "Failed to create customization group" },
+      { status: 500 },
     );
   }
 }
@@ -100,10 +114,10 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const dishId = searchParams.get('dish_id');
+    const dishId = searchParams.get("dish_id");
 
     let queryText = `
-      SELECT 
+      SELECT
         cg.*,
         json_agg(
           json_build_object(
@@ -124,9 +138,9 @@ export async function GET(request: NextRequest) {
       LEFT JOIN ingredient_units iu ON co.unit_id = iu.id
     `;
 
-    const params: any[] = [];
+    const params: (number | string)[] = [];
     if (dishId) {
-      queryText += ' WHERE cg.dish_id = $1';
+      queryText += " WHERE cg.dish_id = $1";
       params.push(parseInt(dishId));
     }
 
@@ -136,18 +150,19 @@ export async function GET(request: NextRequest) {
     `;
 
     const result = await query(queryText, params);
-    const groups = result.rows.map(row => ({
+    const groups = result.rows.map((row) => ({
       ...row,
-      options: row.options.filter((opt: any) => opt.id !== null)
+      options: row.options.filter(
+        (opt: { id: number | null }) => opt.id !== null,
+      ),
     }));
 
     return NextResponse.json({ groups });
-
   } catch (error) {
-    console.error('Error fetching customization groups:', error);
+    console.error("Error fetching customization groups:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch customization groups' },
-      { status: 500 }
+      { error: "Failed to fetch customization groups" },
+      { status: 500 },
     );
   }
 }
