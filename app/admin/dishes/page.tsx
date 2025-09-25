@@ -1,46 +1,707 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
+interface Dish {
+  id: number;
+  name: string;
+  cooking_steps?: string;
+  category_id?: number;
+  category_name?: string;
+  base_calories?: number;
+  preparation_time?: number;
+  servings: number;
+  is_customizable: boolean;
+  created_at: string;
+}
+
+interface Category {
+  id: number;
+  name: string;
+}
+
 export default function AdminDishesPage() {
+  const [dishes, setDishes] = useState<Dish[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedDish, setSelectedDish] = useState<Dish | null>(null);
+
+  // Filters
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<number | "">("");
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Form data for create/edit
+  const [formData, setFormData] = useState({
+    name: "",
+    cooking_steps: "",
+    category_id: "" as number | "",
+    base_calories: "" as number | "",
+    preparation_time: "" as number | "",
+    servings: 1,
+    is_customizable: false,
+  });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    loadDishes();
+    loadCategories();
+  }, []);
+
+  const loadDishes = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/dishes");
+      const data = await response.json();
+
+      if (response.ok) {
+        setDishes(data.dishes || []);
+      } else {
+        setError(data.error || "Failed to load dishes");
+      }
+    } catch (err) {
+      setError("Failed to load dishes");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const response = await fetch("/api/categories");
+      const data = await response.json();
+
+      if (response.ok) {
+        setCategories(data.categories || []);
+      }
+    } catch (err) {
+      console.error("Failed to load categories:", err);
+    }
+  };
+
+  const handleCreateDish = () => {
+    setFormData({
+      name: "",
+      cooking_steps: "",
+      category_id: "",
+      base_calories: "",
+      preparation_time: "",
+      servings: 1,
+      is_customizable: false,
+    });
+    setShowCreateModal(true);
+  };
+
+  const handleEditDish = (dish: Dish) => {
+    setFormData({
+      name: dish.name,
+      cooking_steps: dish.cooking_steps || "",
+      category_id: dish.category_id || "",
+      base_calories: dish.base_calories || "",
+      preparation_time: dish.preparation_time || "",
+      servings: dish.servings,
+      is_customizable: dish.is_customizable,
+    });
+    setSelectedDish(dish);
+    setShowEditModal(true);
+  };
+
+  const handleDeleteDish = (dish: Dish) => {
+    setSelectedDish(dish);
+    setShowDeleteModal(true);
+  };
+
+  const submitForm = async () => {
+    setIsSubmitting(true);
+    try {
+      const url = showEditModal
+        ? `/api/dishes/${selectedDish?.id}`
+        : "/api/dishes";
+      const method = showEditModal ? "PUT" : "POST";
+
+      const payload = {
+        name: formData.name,
+        cooking_steps: formData.cooking_steps || null,
+        category_id: formData.category_id || null,
+        base_calories: formData.base_calories || null,
+        preparation_time: formData.preparation_time || null,
+        servings: formData.servings,
+        is_customizable: formData.is_customizable,
+        ingredients: [], // We'll handle ingredients separately for now
+      };
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        await loadDishes();
+        closeModals();
+      } else {
+        setError(data.error || "Failed to save dish");
+      }
+    } catch (err) {
+      setError("Failed to save dish");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedDish) return;
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/dishes/${selectedDish.id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        await loadDishes();
+        closeModals();
+      } else {
+        const data = await response.json();
+        setError(data.error || "Failed to delete dish");
+      }
+    } catch (err) {
+      setError("Failed to delete dish");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const closeModals = () => {
+    setShowCreateModal(false);
+    setShowEditModal(false);
+    setShowDeleteModal(false);
+    setSelectedDish(null);
+    setError(null);
+  };
+
+  // Filter dishes based on search and category
+  const filteredDishes = dishes.filter((dish) => {
+    const matchesSearch = dish.name
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    const matchesCategory =
+      categoryFilter === "" || dish.category_id === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
+
+  // Pagination
+  const totalPages = Math.ceil(filteredDishes.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentDishes = filteredDishes.slice(
+    startIndex,
+    startIndex + itemsPerPage,
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">菜品管理</h1>
-          <Link
-            href="/admin"
-            className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-          >
-            返回后台
-          </Link>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Dish Management
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Create, edit, and delete dishes
+            </p>
+          </div>
+          <div className="flex space-x-4">
+            <button
+              onClick={handleCreateDish}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                />
+              </svg>
+              <span>Create Dish</span>
+            </button>
+            <Link
+              href="/admin"
+              className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              ← Back to Admin
+            </Link>
+          </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <div className="text-center">
-            <div className="text-gray-500 mb-4">
-              <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h4a1 1 0 011 1v5m-6 0V9a1 1 0 011-1h4a1 1 0 011 1v11" />
-              </svg>
+        {/* Filters */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Search dishes
+              </label>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by name..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">菜品管理功能</h2>
-            <p className="text-gray-600 mb-6">
-              这里可以管理系统中的所有菜品信息，包括添加、编辑和删除菜品。
-            </p>
-            <div className="space-y-2">
-              <Link
-                href="/test/dishes"
-                className="block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Filter by category
+              </label>
+              <select
+                value={categoryFilter}
+                onChange={(e) =>
+                  setCategoryFilter(
+                    e.target.value === "" ? "" : Number(e.target.value),
+                  )
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                查看现有菜品管理页面
-              </Link>
-              <p className="text-sm text-gray-500">
-                功能正在完善中，暂时跳转到测试页面
-              </p>
+                <option value="">All categories</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-end">
+              <div className="text-sm text-gray-600">
+                Showing {filteredDishes.length} of {dishes.length} dishes
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+            {error}
+            <button
+              onClick={() => setError(null)}
+              className="float-right font-bold"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {/* Dishes Table */}
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          {loading ? (
+            <div className="p-8 text-center">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <p className="mt-2 text-gray-600">Loading dishes...</p>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Dish
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Category
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Details
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {currentDishes.map((dish) => (
+                      <tr key={dish.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {dish.name}
+                            </div>
+                            {dish.cooking_steps && (
+                              <div className="text-sm text-gray-500 mt-1 line-clamp-2">
+                                {dish.cooking_steps}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {dish.category_name || "Uncategorized"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">
+                            <div>Serves {dish.servings}</div>
+                            {dish.base_calories && (
+                              <div>{dish.base_calories} cal</div>
+                            )}
+                            {dish.preparation_time && (
+                              <div>{dish.preparation_time} min</div>
+                            )}
+                            {dish.is_customizable && (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800 mt-1">
+                                Customizable
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleEditDish(dish)}
+                              className="text-blue-600 hover:text-blue-900 text-sm font-medium"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteDish(dish)}
+                              className="text-red-600 hover:text-red-900 text-sm font-medium"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-700">
+                      Showing {startIndex + 1} to{" "}
+                      {Math.min(
+                        startIndex + itemsPerPage,
+                        filteredDishes.length,
+                      )}{" "}
+                      of {filteredDishes.length} results
+                    </div>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() =>
+                          setCurrentPage(Math.max(1, currentPage - 1))
+                        }
+                        disabled={currentPage === 1}
+                        className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50"
+                      >
+                        Previous
+                      </button>
+                      {Array.from({ length: totalPages }, (_, i) => (
+                        <button
+                          key={i + 1}
+                          onClick={() => setCurrentPage(i + 1)}
+                          className={`px-3 py-1 border rounded text-sm ${
+                            currentPage === i + 1
+                              ? "bg-blue-600 text-white border-blue-600"
+                              : "border-gray-300 hover:bg-gray-50"
+                          }`}
+                        >
+                          {i + 1}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() =>
+                          setCurrentPage(Math.min(totalPages, currentPage + 1))
+                        }
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
+
+      {/* Create/Edit Modal */}
+      {(showCreateModal || showEditModal) && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  {showCreateModal ? "Create New Dish" : "Edit Dish"}
+                </h3>
+                <button
+                  onClick={closeModals}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  submitForm();
+                }}
+              >
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Category
+                    </label>
+                    <select
+                      value={formData.category_id}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          category_id:
+                            e.target.value === "" ? "" : Number(e.target.value),
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select category</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Cooking Steps
+                    </label>
+                    <textarea
+                      value={formData.cooking_steps}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          cooking_steps: e.target.value,
+                        })
+                      }
+                      rows={4}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Servings *
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.servings}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            servings: parseInt(e.target.value) || 1,
+                          })
+                        }
+                        min="1"
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Base Calories
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.base_calories}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            base_calories:
+                              e.target.value === ""
+                                ? ""
+                                : Number(e.target.value),
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Preparation Time (minutes)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.preparation_time}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          preparation_time:
+                            e.target.value === "" ? "" : Number(e.target.value),
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="is_customizable"
+                      checked={formData.is_customizable}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          is_customizable: e.target.checked,
+                        })
+                      }
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label
+                      htmlFor="is_customizable"
+                      className="ml-2 block text-sm text-gray-900"
+                    >
+                      Allow customization
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={closeModals}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50"
+                  >
+                    {isSubmitting
+                      ? "Saving..."
+                      : showCreateModal
+                        ? "Create"
+                        : "Update"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && selectedDish && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-4">
+                  <svg
+                    className="w-6 h-6 text-red-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.232 16.5c-.77.833.192 2.5 1.732 2.5z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Delete Dish
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    This action cannot be undone.
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-gray-700 mb-6">
+                Are you sure you want to delete{" "}
+                <strong>"{selectedDish.name}"</strong>?
+              </p>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={closeModals}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50"
+                >
+                  {isSubmitting ? "Deleting..." : "Delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

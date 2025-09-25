@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import DishSelectionModal from "./DishSelectionModal";
 
 interface OrderFormData {
@@ -43,14 +43,71 @@ export default function OrderForm({
     notes: initialData.notes || "",
   });
 
+  // Check if data came from homepage modal
+  const isPreFilled = !!(
+    initialData.user_name &&
+    initialData.order_date &&
+    initialData.people_count
+  );
+
   const [isDishModalOpen, setIsDishModalOpen] = useState(false);
   const [selectedDish, setSelectedDish] = useState<DishWithCategory | null>(
     null,
   );
+  const [showUserConfirmation, setShowUserConfirmation] = useState(false);
+  const [existingUserData, setExistingUserData] = useState<{
+    user_name: string;
+    order_count: number;
+    last_order: string;
+  } | null>(null);
+  const [isCheckingUser, setIsCheckingUser] = useState(false);
+  const userCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (showUserConfirmation) {
+      onSubmit(formData);
+    } else {
+      checkUserAndSubmit();
+    }
+  };
+
+  const checkUserAndSubmit = async () => {
+    if (!formData.user_name.trim()) {
+      onSubmit(formData);
+      return;
+    }
+
+    setIsCheckingUser(true);
+    try {
+      const response = await fetch(
+        `/api/users/check?user_name=${encodeURIComponent(formData.user_name.trim())}`,
+      );
+      const data = await response.json();
+
+      if (data.exists && data.user_data) {
+        setExistingUserData(data.user_data);
+        setShowUserConfirmation(true);
+      } else {
+        onSubmit(formData);
+      }
+    } catch (error) {
+      console.error("Error checking user:", error);
+      // If check fails, proceed with submission
+      onSubmit(formData);
+    } finally {
+      setIsCheckingUser(false);
+    }
+  };
+
+  const confirmExistingUser = () => {
+    setShowUserConfirmation(false);
     onSubmit(formData);
+  };
+
+  const cancelUserConfirmation = () => {
+    setShowUserConfirmation(false);
+    setExistingUserData(null);
   };
 
   const handleChange = (
@@ -92,14 +149,42 @@ export default function OrderForm({
 
   return (
     <>
-      <div className="max-w-md mx-auto bg-white shadow-md rounded-lg p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Place Order</h2>
+      <div className="max-w-md mx-auto bg-card/50 backdrop-blur-sm shadow-md rounded-lg p-6 border border-border/50">
+        <h2 className="text-2xl font-bold text-foreground mb-6">Place Order</h2>
+
+        {/* Pre-filled Information Notice */}
+        {isPreFilled && (
+          <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mb-6">
+            <div className="flex items-center space-x-2 mb-2">
+              <svg
+                className="w-5 h-5 text-primary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <h4 className="font-medium text-foreground">
+                Information Pre-filled
+              </h4>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Your dining information has been automatically filled from your
+              previous selection. You can focus on choosing your dishes below.
+            </p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label
               htmlFor="user_name"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-foreground mb-1"
             >
               Your Name *
             </label>
@@ -110,7 +195,10 @@ export default function OrderForm({
               required
               value={formData.user_name}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              readOnly={isPreFilled}
+              className={`w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary smooth-transition text-foreground placeholder-muted-foreground ${
+                isPreFilled ? "bg-muted cursor-not-allowed" : "bg-input"
+              }`}
               placeholder="Enter your name"
             />
           </div>
@@ -118,7 +206,7 @@ export default function OrderForm({
           <div>
             <label
               htmlFor="order_date"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-foreground mb-1"
             >
               Date *
             </label>
@@ -129,14 +217,17 @@ export default function OrderForm({
               required
               value={formData.order_date}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              readOnly={isPreFilled}
+              className={`w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary smooth-transition text-foreground ${
+                isPreFilled ? "bg-muted cursor-not-allowed" : "bg-input"
+              }`}
             />
           </div>
 
           <div>
             <label
               htmlFor="meal_type"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-foreground mb-1"
             >
               Meal Type *
             </label>
@@ -146,7 +237,7 @@ export default function OrderForm({
               required
               value={formData.meal_type}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary smooth-transition text-foreground bg-input"
             >
               <option value="breakfast">Breakfast</option>
               <option value="lunch">Lunch</option>
@@ -157,7 +248,7 @@ export default function OrderForm({
           <div>
             <label
               htmlFor="people_count"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-foreground mb-1"
             >
               Number of People *
             </label>
@@ -170,14 +261,17 @@ export default function OrderForm({
               max="50"
               value={formData.people_count}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              readOnly={isPreFilled}
+              className={`w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary smooth-transition text-foreground ${
+                isPreFilled ? "bg-muted cursor-not-allowed" : "bg-input"
+              }`}
             />
           </div>
 
           <div>
             <label
               htmlFor="notes"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-foreground mb-1"
             >
               Notes
             </label>
@@ -187,7 +281,7 @@ export default function OrderForm({
               rows={3}
               value={formData.notes}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
+              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary smooth-transition resize-none text-foreground placeholder-muted-foreground bg-input"
               placeholder="Special requests or notes"
             />
           </div>
@@ -295,14 +389,18 @@ export default function OrderForm({
 
           <button
             type="submit"
-            disabled={isSubmitting || !selectedDish}
+            disabled={isSubmitting || !selectedDish || isCheckingUser}
             className={`w-full py-3 px-4 rounded-md font-medium transition-colors ${
-              isSubmitting || !selectedDish
+              isSubmitting || !selectedDish || isCheckingUser
                 ? "bg-gray-400 cursor-not-allowed text-gray-600"
                 : "bg-blue-600 hover:bg-blue-700 text-white"
             }`}
           >
-            {isSubmitting ? "Submitting..." : "Submit Order"}
+            {isCheckingUser
+              ? "Checking..."
+              : isSubmitting
+                ? "Submitting..."
+                : "Submit Order"}
           </button>
 
           {!selectedDish && (
@@ -319,6 +417,83 @@ export default function OrderForm({
         onClose={handleCloseDishSelection}
         onSelectDish={handleDishSelect}
       />
+      {/* User confirmation modal */}
+      {showUserConfirmation && existingUserData && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-lg shadow-xl max-w-md w-full p-6 border border-border">
+            <div className="text-center mb-6">
+              <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg
+                  className="w-6 h-6 text-primary"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-foreground mb-2">
+                Welcome Back!
+              </h3>
+              <p className="text-muted-foreground text-sm">
+                We found an existing customer with this name
+              </p>
+            </div>
+
+            <div className="bg-muted/30 rounded-lg p-4 mb-6">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground text-sm">Name:</span>
+                  <span className="text-foreground font-medium">
+                    {existingUserData.user_name}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground text-sm">
+                    Previous Orders:
+                  </span>
+                  <span className="text-foreground font-medium">
+                    {existingUserData.order_count}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground text-sm">
+                    Last Order:
+                  </span>
+                  <span className="text-foreground font-medium text-xs">
+                    {new Date(existingUserData.last_order).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-muted-foreground text-sm text-center mb-6">
+              Is this you? If not, please try a different name to avoid
+              confusion with your order.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={cancelUserConfirmation}
+                className="flex-1 px-4 py-2 border border-border rounded-md text-muted-foreground hover:bg-muted/50 transition-colors"
+              >
+                Different Name
+              </button>
+              <button
+                onClick={confirmExistingUser}
+                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+              >
+                Yes, That's Me
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
