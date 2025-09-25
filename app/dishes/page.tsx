@@ -248,13 +248,6 @@ export default function MenuPage() {
                           </p>
                         )}
 
-                        {/* Cooking Description */}
-                        {dish.cooking_steps && (
-                          <p className="text-muted-foreground text-sm leading-relaxed">
-                            {dish.cooking_steps}
-                          </p>
-                        )}
-
                         {/* Decorative Line */}
                         <div className="mt-6 pt-6 border-t border-border/30">
                           <div className="w-12 h-px bg-primary/30"></div>
