@@ -109,7 +109,27 @@ export async function GET(request: NextRequest) {
     const result = await query(queryText, params);
     const dishes = result.rows;
 
-    return NextResponse.json({ dishes });
+    // Fetch ingredients for each dish
+    const dishesWithIngredients = await Promise.all(
+      dishes.map(async (dish: any) => {
+        const ingredientsResult = await query(
+          `SELECT di.*, i.name as ingredient_name, iu.name as unit_name, iu.abbreviation as unit_abbreviation
+           FROM dish_ingredients di
+           JOIN ingredients i ON di.ingredient_id = i.id
+           JOIN ingredient_units iu ON di.unit_id = iu.id
+           WHERE di.dish_id = $1
+           ORDER BY di.id`,
+          [dish.id],
+        );
+
+        return {
+          ...dish,
+          ingredients: ingredientsResult.rows,
+        };
+      }),
+    );
+
+    return NextResponse.json({ dishes: dishesWithIngredients });
   } catch (error) {
     console.error("Error fetching dishes:", error);
     return NextResponse.json(

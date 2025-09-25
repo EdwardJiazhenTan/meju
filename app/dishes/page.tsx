@@ -2,234 +2,310 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Category } from "@/types";
 
-interface CategoryWithCount extends Category {
-  dish_count: number;
+interface DishIngredient {
+  id: number;
+  ingredient_name: string;
+  quantity: number;
+  unit_name: string;
+  unit_abbreviation?: string;
+  is_optional: boolean;
 }
 
-export default function DishesPage() {
-  const [categories, setCategories] = useState<CategoryWithCount[]>([]);
+interface Dish {
+  id: number;
+  name: string;
+  cooking_steps?: string;
+  category_id?: number;
+  base_calories?: number;
+  preparation_time?: number;
+  servings: number;
+  is_customizable: boolean;
+  category_name?: string;
+  ingredients: DishIngredient[];
+}
+
+interface Category {
+  id: number;
+  name: string;
+  display_order?: number;
+}
+
+export default function MenuPage() {
+  const [dishes, setDishes] = useState<Dish[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCategories();
+    fetchDishes();
   }, []);
+
+  useEffect(() => {
+    fetchDishes();
+  }, [selectedCategory]);
 
   const fetchCategories = async () => {
     try {
-      setLoading(true);
       const response = await fetch("/api/categories");
-      const result = await response.json();
+      const data = await response.json();
+      if (response.ok) {
+        setCategories(data.categories || []);
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    }
+  };
 
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to fetch categories");
+  const fetchDishes = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (selectedCategory) {
+        params.append("category", selectedCategory);
       }
 
-      setCategories(result.categories || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      const response = await fetch(`/api/dishes?${params.toString()}`);
+      const data = await response.json();
+      if (response.ok) {
+        setDishes(data.dishes || []);
+      }
+    } catch (error) {
+      console.error("Error fetching dishes:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center py-12">
-            <div className="text-gray-500">Loading categories...</div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const formatIngredients = (ingredients: DishIngredient[]) => {
+    return ingredients
+      .map((ing) => {
+        const unit = ing.unit_abbreviation || ing.unit_name;
+        const quantity =
+          ing.quantity % 1 === 0 ? ing.quantity : ing.quantity.toFixed(1);
+        const optional = ing.is_optional ? " (optional)" : "";
+        return `${ing.ingredient_name} ${quantity}${unit}${optional}`;
+      })
+      .join(", ");
+  };
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-            {error}
-            <button
-              onClick={fetchCategories}
-              className="ml-4 text-sm underline"
-            >
-              Retry
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+  const groupedDishes = categories.reduce(
+    (acc, category) => {
+      const categoryDishes = dishes.filter(
+        (dish) => dish.category_name === category.name,
+      );
+      if (categoryDishes.length > 0) {
+        acc[category.name] = categoryDishes;
+      }
+      return acc;
+    },
+    {} as Record<string, Dish[]>,
+  );
+
+  // Add uncategorized dishes
+  const uncategorizedDishes = dishes.filter((dish) => !dish.category_name);
+  if (uncategorizedDishes.length > 0) {
+    groupedDishes["Other"] = uncategorizedDishes;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dish Gallery</h1>
-            <p className="text-gray-600 mt-2">Browse dishes by category</p>
+    <div className="min-h-screen bg-background">
+      {/* Background decorative elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 right-20 w-64 h-64 bg-primary/8 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-20 left-20 w-64 h-64 bg-primary/6 rounded-full blur-3xl"></div>
+      </div>
+
+      <div className="relative z-10 max-w-6xl mx-auto px-6 py-16">
+        {/* Header */}
+        <div className="text-center mb-16">
+          <h1 className="font-english text-5xl md:text-6xl text-primary mb-4">
+            Our Menu
+          </h1>
+          <div className="font-chinese text-2xl md:text-3xl text-foreground mb-8">
+            我们的菜单
           </div>
-          <Link
-            href="/dishes/create"
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-          >
-            Add New Dish
-          </Link>
+          <div className="w-24 h-px bg-primary mx-auto mb-6"></div>
+          <p className="text-muted-foreground text-lg max-w-2xl mx-auto leading-relaxed">
+            Carefully curated dishes crafted with the finest ingredients and
+            traditional techniques
+          </p>
         </div>
 
-        {/* Category Cards */}
-        {categories.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-gray-500 text-lg mb-4">
-              No categories created yet
+        {/* Category Filter */}
+        <div className="flex justify-center mb-12">
+          <div className="bg-card/50 backdrop-blur-sm rounded-2xl p-6 border border-border/50">
+            <div className="flex flex-wrap justify-center gap-4">
+              <button
+                onClick={() => setSelectedCategory("")}
+                className={`px-6 py-2 rounded-full smooth-transition font-medium tracking-wide uppercase text-sm ${
+                  selectedCategory === ""
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-primary border border-border/50 hover:border-primary/50"
+                }`}
+              >
+                All Dishes
+              </button>
+              {categories.map((category) => (
+                <button
+                  key={category.id}
+                  onClick={() => setSelectedCategory(category.name)}
+                  className={`px-6 py-2 rounded-full smooth-transition font-medium tracking-wide uppercase text-sm ${
+                    selectedCategory === category.name
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-primary border border-border/50 hover:border-primary/50"
+                  }`}
+                >
+                  {category.name}
+                </button>
+              ))}
             </div>
-            <Link
-              href="/categories/create"
-              className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
-            >
-              Create Your First Category
-            </Link>
+          </div>
+        </div>
+
+        {/* Menu Content */}
+        {loading ? (
+          <div className="text-center py-20">
+            <div className="inline-block w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-muted-foreground">
+              Loading our finest dishes...
+            </p>
+          </div>
+        ) : Object.keys(groupedDishes).length === 0 ? (
+          <div className="text-center py-20">
+            <div className="bg-card/50 backdrop-blur-sm rounded-2xl p-12 border border-border/50 max-w-md mx-auto">
+              <h3 className="font-english text-2xl text-foreground mb-4">
+                No Dishes Available
+              </h3>
+              <p className="text-muted-foreground mb-6">
+                We are currently updating our menu. Please check back soon.
+              </p>
+              <Link href="/" className="btn-elegant">
+                Return Home
+              </Link>
+            </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {categories.map((category) => (
-              <Link
-                key={category.id}
-                href={`/dishes/category/${encodeURIComponent(category.name)}`}
-                className="group block"
-              >
-                <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 p-6 border border-gray-200 group-hover:border-blue-300">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                      <span className="text-white font-bold text-lg">
-                        {category.name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-gray-900">
-                        {category.dish_count}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {category.dish_count === 1 ? "dish" : "dishes"}
-                      </div>
-                    </div>
+          <div className="space-y-16">
+            {Object.entries(groupedDishes).map(
+              ([categoryName, categoryDishes]) => (
+                <section key={categoryName} className="category-section">
+                  {/* Category Header */}
+                  <div className="text-center mb-12">
+                    <h2 className="font-english text-3xl md:text-4xl text-primary mb-4">
+                      {categoryName}
+                    </h2>
+                    <div className="w-16 h-px bg-primary mx-auto"></div>
                   </div>
 
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
-                    {category.name}
-                  </h3>
+                  {/* Two Column Layout */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-12">
+                    {categoryDishes.map((dish) => (
+                      <div key={dish.id} className="dish-item">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <h3 className="font-english text-xl md:text-2xl text-foreground font-medium leading-tight">
+                              {dish.name}
+                            </h3>
 
-                  <div className="flex items-center text-sm text-gray-500">
-                    <svg
-                      className="w-4 h-4 mr-1"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                    View dishes
+                            {/* Dish Meta Info */}
+                            <div className="flex items-center gap-4 mt-2 mb-4">
+                              {dish.base_calories && (
+                                <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                                  {dish.base_calories} Cal
+                                </span>
+                              )}
+                              {dish.preparation_time && (
+                                <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                                  {dish.preparation_time} Min
+                                </span>
+                              )}
+                              <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                                Serves {dish.servings}
+                              </span>
+                              {dish.is_customizable && (
+                                <span className="text-xs text-primary uppercase tracking-wider">
+                                  Customizable
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Order Button */}
+                          <Link
+                            href={`/order?dish=${encodeURIComponent(dish.name)}`}
+                            className="ml-6 px-4 py-2 bg-primary text-primary-foreground rounded-full text-xs uppercase tracking-wider font-medium hover:bg-primary/90 smooth-transition flex-shrink-0"
+                          >
+                            Order
+                          </Link>
+                        </div>
+
+                        {/* Ingredients */}
+                        {dish.ingredients && dish.ingredients.length > 0 && (
+                          <p className="text-muted-foreground text-sm leading-relaxed italic mb-4">
+                            {formatIngredients(dish.ingredients)}
+                          </p>
+                        )}
+
+                        {/* Cooking Description */}
+                        {dish.cooking_steps && (
+                          <p className="text-muted-foreground text-sm leading-relaxed">
+                            {dish.cooking_steps}
+                          </p>
+                        )}
+
+                        {/* Decorative Line */}
+                        <div className="mt-6 pt-6 border-t border-border/30">
+                          <div className="w-12 h-px bg-primary/30"></div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              </Link>
-            ))}
+                </section>
+              ),
+            )}
           </div>
         )}
 
-        {/* Quick Actions */}
-        <div className="mt-12 bg-white rounded-lg shadow-sm border p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Quick Actions
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Link
-              href="/dishes/create"
-              className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-                <svg
-                  className="w-5 h-5 text-blue-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
+        {/* Bottom Action */}
+        {!loading && Object.keys(groupedDishes).length > 0 && (
+          <div className="text-center mt-20 pt-16 border-t border-border/30">
+            <div className="mb-8">
+              <div className="font-chinese text-2xl text-foreground mb-2">
+                开始您的用餐体验
               </div>
-              <div>
-                <div className="font-medium text-gray-900">Create Dish</div>
-                <div className="text-sm text-gray-500">Add a new dish</div>
-              </div>
-            </Link>
-
-            <Link
-              href="/categories/create"
-              className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
-                <svg
-                  className="w-5 h-5 text-purple-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z"
-                  />
-                </svg>
-              </div>
-              <div>
-                <div className="font-medium text-gray-900">Create Category</div>
-                <div className="text-sm text-gray-500">Add a new category</div>
-              </div>
-            </Link>
-
-            <Link
-              href="/ingredients/create"
-              className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
-                <svg
-                  className="w-5 h-5 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"
-                  />
-                </svg>
-              </div>
-              <div>
-                <div className="font-medium text-gray-900">
-                  Create Ingredient
-                </div>
-                <div className="text-sm text-gray-500">
-                  Add a new ingredient
-                </div>
-              </div>
+              <p className="text-muted-foreground">
+                Ready to begin your culinary journey?
+              </p>
+            </div>
+            <Link href="/order" className="btn-elegant text-lg px-8 py-4">
+              Start Your Order
             </Link>
           </div>
+        )}
+
+        {/* Navigation */}
+        <div className="text-center mt-16 pt-8 border-t border-border/50">
+          <Link
+            href="/"
+            className="text-muted-foreground hover:text-primary smooth-transition font-medium flex items-center justify-center space-x-2"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 19l-7-7m0 0l7-7m-7 7h18"
+              />
+            </svg>
+            <span>Return to Home</span>
+          </Link>
         </div>
       </div>
     </div>

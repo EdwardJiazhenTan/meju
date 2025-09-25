@@ -67,9 +67,23 @@ CREATE TABLE customization_options (
     display_order INTEGER
 );
 
+-- 订单表
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    user_name VARCHAR(100) NOT NULL,  -- 用户名
+    order_date DATE NOT NULL,         -- 点餐日期
+    meal_type VARCHAR(20) NOT NULL,   -- breakfast/lunch/dinner
+    dish_name VARCHAR(100) NOT NULL,  -- 菜品名称
+    people_count INTEGER NOT NULL,    -- 人数
+    notes TEXT,                       -- 备注
+    status VARCHAR(20) DEFAULT 'pending', -- pending/confirmed/completed
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
 -- 用户菜单计划表
 CREATE TABLE meal_plans (
     id SERIAL PRIMARY KEY,
+    user_name VARCHAR(100), -- 关联用户名
     date DATE NOT NULL,
     meal_name VARCHAR(50), -- 自由命名：早餐、午餐、晚餐、下午茶等
     created_at TIMESTAMP DEFAULT NOW()
@@ -89,7 +103,7 @@ CREATE TABLE meal_items (
 CREATE VIEW weekly_shopping_list AS
 WITH meal_ingredients AS (
     -- 基础食材
-    SELECT 
+    SELECT
         mp.date,
         di.ingredient_id,
         i.name as ingredient_name,
@@ -97,15 +111,15 @@ WITH meal_ingredients AS (
         iu.name as unit_name,
         iu.abbreviation as unit_abbrev
     FROM meal_plans mp
-    JOIN meal_items mi ON mp.id = mi.meal_plan_id  
+    JOIN meal_items mi ON mp.id = mi.meal_plan_id
     JOIN dish_ingredients di ON mi.dish_id = di.dish_id
     JOIN ingredients i ON di.ingredient_id = i.id
     JOIN ingredient_units iu ON di.unit_id = iu.id
-    
+
     UNION ALL
-    
+
     -- 定制食材（从JSONB解析）
-    SELECT 
+    SELECT
         mp.date,
         co.ingredient_id,
         i.name as ingredient_name,
@@ -120,12 +134,12 @@ WITH meal_ingredients AS (
     JOIN ingredient_units iu ON co.unit_id = iu.id
     WHERE customization_data->>'selected' = 'true'
 )
-SELECT 
+SELECT
     ingredient_name,
     unit_name,
     unit_abbrev,
     SUM(needed_quantity) as total_quantity
-FROM meal_ingredients 
+FROM meal_ingredients
 WHERE date >= CURRENT_DATE - INTERVAL '7 days'
     AND date <= CURRENT_DATE + INTERVAL '7 days'
 GROUP BY ingredient_name, unit_name, unit_abbrev

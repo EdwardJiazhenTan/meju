@@ -6,6 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "init-db": "npx tsx scripts/init-db.ts",
+    "migrate": "npx tsx scripts/run-migration.ts",
     "reset-db": "docker exec meal-planner-db psql -U admin -d meal_planner -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' && npm run init-db",
     "start-db": "docker start meal-planner-db",
     "stop-db": "docker stop meal-planner-db",

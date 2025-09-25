@@ -45,7 +45,7 @@ export interface CustomizationGroup {
   id: number;
   dish_id: number;
   name: string;
-  type: 'single' | 'multiple' | 'quantity';
+  type: "single" | "multiple" | "quantity";
   is_required: boolean;
   display_order?: number;
 }
@@ -60,8 +60,21 @@ export interface CustomizationOption {
   display_order?: number;
 }
 
+export interface Order {
+  id: number;
+  user_name: string;
+  order_date: Date;
+  meal_type: string;
+  dish_name: string;
+  people_count: number;
+  notes?: string;
+  status: "pending" | "confirmed" | "completed";
+  created_at: Date;
+}
+
 export interface MealPlan {
   id: number;
+  user_name?: string;
   date: Date;
   meal_name?: string;
   created_at: Date;

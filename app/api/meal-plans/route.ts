@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/database';
-import { MealPlan } from '@/types/database';
+import { NextRequest, NextResponse } from "next/server";
+import { query } from "@/lib/database";
+import { MealPlan } from "@/types/database";
 
 interface CreateMealPlanData {
+  user_name?: string; // optional user name
   date: string; // YYYY-MM-DD format
   meal_name: string; // breakfast, lunch, dinner, etc.
 }
@@ -10,54 +11,61 @@ interface CreateMealPlanData {
 export async function POST(request: NextRequest) {
   try {
     const body: CreateMealPlanData = await request.json();
-    const { date, meal_name } = body;
+    const { user_name, date, meal_name } = body;
 
     // Validate required fields
     if (!date || !meal_name) {
       return NextResponse.json(
-        { error: 'Date and meal_name are required' },
-        { status: 400 }
+        { error: "Date and meal_name are required" },
+        { status: 400 },
       );
     }
 
     // Validate date format
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return NextResponse.json(
-        { error: 'Date must be in YYYY-MM-DD format' },
-        { status: 400 }
+        { error: "Date must be in YYYY-MM-DD format" },
+        { status: 400 },
       );
     }
 
-    // Check if meal plan already exists for this date and meal
-    const existingCheck = await query(
-      'SELECT id FROM meal_plans WHERE date = $1 AND meal_name = $2',
-      [date, meal_name]
-    );
+    // Check if meal plan already exists for this date, meal, and user
+    let existingCheck;
+    if (user_name) {
+      existingCheck = await query(
+        "SELECT id FROM meal_plans WHERE user_name = $1 AND date = $2 AND meal_name = $3",
+        [user_name, date, meal_name],
+      );
+    } else {
+      existingCheck = await query(
+        "SELECT id FROM meal_plans WHERE user_name IS NULL AND date = $1 AND meal_name = $2",
+        [date, meal_name],
+      );
+    }
 
     if (existingCheck.rows.length > 0) {
       return NextResponse.json(
-        { error: 'Meal plan already exists for this date and meal' },
-        { status: 409 }
+        { error: "Meal plan already exists for this date and meal" },
+        { status: 409 },
       );
     }
 
     // Create new meal plan
     const result = await query(
-      `INSERT INTO meal_plans (date, meal_name)
-       VALUES ($1, $2)
+      `INSERT INTO meal_plans (user_name, date, meal_name)
+       VALUES ($1, $2, $3)
        RETURNING *`,
-      [date, meal_name]
+      [user_name || null, date, meal_name],
     );
 
     const mealPlan = result.rows[0];
 
     return NextResponse.json({ mealPlan }, { status: 201 });
-
   } catch (error) {
-    console.error('Error creating meal plan:', error);
+    console.error("Error creating meal plan:", error);
     return NextResponse.json(
-      { error: 'Failed to create meal plan' },
-      { status: 500 }
+      { error: "Failed to create meal plan" },
+      { status: 500 },
     );
   }
 }
@@ -65,12 +73,19 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const date = searchParams.get('date');
-    const meal_name = searchParams.get('meal_name');
+    const user_name = searchParams.get("user_name");
+    const date = searchParams.get("date");
+    const meal_name = searchParams.get("meal_name");
 
-    let queryText = 'SELECT * FROM meal_plans WHERE 1=1';
+    let queryText = "SELECT * FROM meal_plans WHERE 1=1";
     const params: any[] = [];
     let paramCount = 0;
+
+    if (user_name) {
+      paramCount++;
+      queryText += ` AND user_name = $${paramCount}`;
+      params.push(user_name);
+    }
 
     if (date) {
       paramCount++;
@@ -84,18 +99,17 @@ export async function GET(request: NextRequest) {
       params.push(meal_name);
     }
 
-    queryText += ' ORDER BY date ASC, meal_name ASC';
+    queryText += " ORDER BY date ASC, meal_name ASC";
 
     const result = await query(queryText, params);
     const mealPlans = result.rows;
 
     return NextResponse.json({ mealPlans });
-
   } catch (error) {
-    console.error('Error fetching meal plans:', error);
+    console.error("Error fetching meal plans:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch meal plans' },
-      { status: 500 }
+      { error: "Failed to fetch meal plans" },
+      { status: 500 },
     );
   }
 }
@@ -107,17 +121,20 @@ export async function PUT(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json(
-        { error: 'Meal plan ID is required' },
-        { status: 400 }
+        { error: "Meal plan ID is required" },
+        { status: 400 },
       );
     }
 
     // Check if meal plan exists
-    const existingCheck = await query('SELECT id FROM meal_plans WHERE id = $1', [id]);
+    const existingCheck = await query(
+      "SELECT id FROM meal_plans WHERE id = $1",
+      [id],
+    );
     if (existingCheck.rows.length === 0) {
       return NextResponse.json(
-        { error: 'Meal plan not found' },
-        { status: 404 }
+        { error: "Meal plan not found" },
+        { status: 404 },
       );
     }
 
@@ -140,8 +157,8 @@ export async function PUT(request: NextRequest) {
 
     if (updates.length === 0) {
       return NextResponse.json(
-        { error: 'No fields to update' },
-        { status: 400 }
+        { error: "No fields to update" },
+        { status: 400 },
       );
     }
 
@@ -149,19 +166,18 @@ export async function PUT(request: NextRequest) {
     params.push(id);
 
     const result = await query(
-      `UPDATE meal_plans SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`,
-      params
+      `UPDATE meal_plans SET ${updates.join(", ")} WHERE id = $${paramCount} RETURNING *`,
+      params,
     );
 
     const mealPlan = result.rows[0];
 
     return NextResponse.json({ mealPlan });
-
   } catch (error) {
-    console.error('Error updating meal plan:', error);
+    console.error("Error updating meal plan:", error);
     return NextResponse.json(
-      { error: 'Failed to update meal plan' },
-      { status: 500 }
+      { error: "Failed to update meal plan" },
+      { status: 500 },
     );
   }
 }
@@ -169,34 +185,36 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+    const id = searchParams.get("id");
 
     if (!id) {
       return NextResponse.json(
-        { error: 'Meal plan ID is required' },
-        { status: 400 }
+        { error: "Meal plan ID is required" },
+        { status: 400 },
       );
     }
 
     // Check if meal plan exists
-    const existingCheck = await query('SELECT id FROM meal_plans WHERE id = $1', [id]);
+    const existingCheck = await query(
+      "SELECT id FROM meal_plans WHERE id = $1",
+      [id],
+    );
     if (existingCheck.rows.length === 0) {
       return NextResponse.json(
-        { error: 'Meal plan not found' },
-        { status: 404 }
+        { error: "Meal plan not found" },
+        { status: 404 },
       );
     }
 
     // Delete meal plan (this will cascade to meal_items if you have foreign key constraints)
-    await query('DELETE FROM meal_plans WHERE id = $1', [parseInt(id)]);
+    await query("DELETE FROM meal_plans WHERE id = $1", [parseInt(id)]);
 
-    return NextResponse.json({ message: 'Meal plan deleted successfully' });
-
+    return NextResponse.json({ message: "Meal plan deleted successfully" });
   } catch (error) {
-    console.error('Error deleting meal plan:', error);
+    console.error("Error deleting meal plan:", error);
     return NextResponse.json(
-      { error: 'Failed to delete meal plan' },
-      { status: 500 }
+      { error: "Failed to delete meal plan" },
+      { status: 500 },
     );
   }
 }

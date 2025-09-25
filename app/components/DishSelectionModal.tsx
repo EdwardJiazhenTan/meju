@@ -108,8 +108,14 @@ export default function DishSelectionModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Background overlay */}
+      <div
+        className="absolute inset-0 bg-black bg-opacity-50"
+        onClick={onClose}
+      ></div>
+
       {/* Modal */}
-      <div className="relative bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] m-4">
+      <div className="relative bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] m-4 z-10">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center">
@@ -142,7 +148,7 @@ export default function DishSelectionModal({
               <p className="text-sm text-gray-600 mt-1">
                 {currentView === "categories"
                   ? "Choose a category to browse dishes"
-                  : "Select a dish to add to your meal"}
+                  : "Select a dish to add to your order"}
               </p>
             </div>
           </div>
