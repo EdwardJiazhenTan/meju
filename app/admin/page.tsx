@@ -53,12 +53,20 @@ export default function AdminPage() {
               <p className="text-gray-600 mb-6">
                 Create new dishes and modify existing ones
               </p>
-              <Link
-                href="/admin/dishes"
-                className="block w-full bg-orange-600 text-white py-3 px-4 rounded-lg hover:bg-orange-700 transition-colors font-medium"
-              >
-                Manage All Dishes
-              </Link>
+              <div className="space-y-3">
+                <Link
+                  href="/admin/dishes"
+                  className="block w-full bg-orange-600 text-white py-3 px-4 rounded-lg hover:bg-orange-700 transition-colors font-medium"
+                >
+                  Manage Dishes
+                </Link>
+                <Link
+                  href="/admin/categories"
+                  className="block w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+                >
+                  Manage Categories
+                </Link>
+              </div>
             </div>
           </div>
 
@@ -141,6 +149,12 @@ export default function AdminPage() {
               className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
             >
               Manage Dishes
+            </Link>
+            <Link
+              href="/admin/categories"
+              className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium"
+            >
+              Manage Categories
             </Link>
             <Link
               href="/admin/meal-plan"
