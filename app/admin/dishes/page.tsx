@@ -57,7 +57,7 @@ export default function AdminDishesPage() {
       } else {
         setError(data.error || "Failed to load dishes");
       }
-    } catch (err) {
+    } catch {
       setError("Failed to load dishes");
     } finally {
       setLoading(false);
@@ -404,7 +404,7 @@ export default function AdminDishesPage() {
 
               <p className="text-gray-700 mb-6">
                 Are you sure you want to delete{" "}
-                <strong>"{selectedDish.name}"</strong>?
+                <strong>&ldquo;{selectedDish.name}&rdquo;</strong>?
               </p>
 
               <div className="flex justify-end space-x-3">

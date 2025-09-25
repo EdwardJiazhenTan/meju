@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import { useRouter } from 'next/navigation';
-import DishForm from '@/app/components/DishForm';
-import Link from 'next/link';
+import { useRouter } from "next/navigation";
+import DishForm from "@/app/components/DishForm";
+import Link from "next/link";
 
 export default function CreateDishPage() {
   const router = useRouter();
 
-  const handleDishCreated = (dish: any) => {
+  const handleDishCreated = () => {
     // Redirect to dishes management page after creation
-    router.push('/admin/dishes');
+    router.push("/admin/dishes");
   };
 
   return (
@@ -18,7 +18,9 @@ export default function CreateDishPage() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Create New Dish</h1>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Create New Dish
+            </h1>
             <p className="text-gray-600 mt-1">Add a new dish to your menu</p>
           </div>
           <Link

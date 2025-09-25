@@ -47,14 +47,15 @@ interface Unit {
 }
 
 export default function EditDishPage() {
-  const router = useRouter();
   const params = useParams();
   const dishId = params?.dishId as string;
 
   const [dish, setDish] = useState<Dish | null>(null);
   const [ingredients, setIngredients] = useState<DishIngredient[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [availableIngredients, setAvailableIngredients] = useState<Ingredient[]>([]);
+  const [availableIngredients, setAvailableIngredients] = useState<
+    Ingredient[]
+  >([]);
   const [availableUnits, setAvailableUnits] = useState<Unit[]>([]);
 
   const [loading, setLoading] = useState(true);
@@ -88,7 +89,7 @@ export default function EditDishPage() {
       loadAvailableIngredients();
       loadAvailableUnits();
     }
-  }, [dishId]);
+  }, [dishId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadDishData = async () => {
     try {
@@ -115,13 +116,14 @@ export default function EditDishPage() {
       });
 
       // Load dish ingredients
-      const ingredientsResponse = await fetch(`/api/dishes/${dishId}/ingredients`);
+      const ingredientsResponse = await fetch(
+        `/api/dishes/${dishId}/ingredients`,
+      );
       const ingredientsData = await ingredientsResponse.json();
 
       if (ingredientsResponse.ok) {
         setIngredients(ingredientsData.ingredients || []);
       }
-
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load dish data");
     } finally {
@@ -197,7 +199,6 @@ export default function EditDishPage() {
 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
-
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update dish");
     } finally {
@@ -206,7 +207,11 @@ export default function EditDishPage() {
   };
 
   const addIngredient = async () => {
-    if (!newIngredient.ingredient_id || !newIngredient.quantity || !newIngredient.unit_id) {
+    if (
+      !newIngredient.ingredient_id ||
+      !newIngredient.quantity ||
+      !newIngredient.unit_id
+    ) {
       setError("Please fill in all ingredient fields");
       return;
     }
@@ -231,7 +236,9 @@ export default function EditDishPage() {
       }
 
       // Reload ingredients
-      const ingredientsResponse = await fetch(`/api/dishes/${dishId}/ingredients`);
+      const ingredientsResponse = await fetch(
+        `/api/dishes/${dishId}/ingredients`,
+      );
       const ingredientsData = await ingredientsResponse.json();
       if (ingredientsResponse.ok) {
         setIngredients(ingredientsData.ingredients || []);
@@ -244,7 +251,6 @@ export default function EditDishPage() {
         unit_id: "",
         is_optional: false,
       });
-
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add ingredient");
     }
@@ -266,10 +272,13 @@ export default function EditDishPage() {
       }
 
       // Remove from local state
-      setIngredients(ingredients.filter(ing => ing.ingredient_id !== ingredientId));
-
+      setIngredients(
+        ingredients.filter((ing) => ing.ingredient_id !== ingredientId),
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to remove ingredient");
+      setError(
+        err instanceof Error ? err.message : "Failed to remove ingredient",
+      );
     }
   };
 
@@ -289,7 +298,10 @@ export default function EditDishPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600 mb-4">Dish not found</p>
-          <Link href="/admin/dishes" className="text-blue-600 hover:text-blue-800">
+          <Link
+            href="/admin/dishes"
+            className="text-blue-600 hover:text-blue-800"
+          >
             ← Back to Dishes
           </Link>
         </div>
@@ -304,7 +316,9 @@ export default function EditDishPage() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Edit Dish</h1>
-            <p className="text-gray-600 mt-1">Modify dish details and ingredients</p>
+            <p className="text-gray-600 mt-1">
+              Modify dish details and ingredients
+            </p>
           </div>
           <Link
             href="/admin/dishes"
@@ -325,33 +339,52 @@ export default function EditDishPage() {
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
             {error}
-            <button onClick={() => setError(null)} className="float-right font-bold">×</button>
+            <button
+              onClick={() => setError(null)}
+              className="float-right font-bold"
+            >
+              ×
+            </button>
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Dish Details Form */}
           <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Dish Details</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">
+              Dish Details
+            </h2>
 
             <form onSubmit={handleSubmit}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Name *
+                  </label>
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Category
+                  </label>
                   <select
                     value={formData.category_id}
-                    onChange={(e) => setFormData({ ...formData, category_id: e.target.value === "" ? "" : Number(e.target.value) })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        category_id:
+                          e.target.value === "" ? "" : Number(e.target.value),
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select category</option>
@@ -364,10 +397,17 @@ export default function EditDishPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Cooking Steps</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cooking Steps
+                  </label>
                   <textarea
                     value={formData.cooking_steps}
-                    onChange={(e) => setFormData({ ...formData, cooking_steps: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        cooking_steps: e.target.value,
+                      })
+                    }
                     rows={4}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -375,11 +415,18 @@ export default function EditDishPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Servings *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Servings *
+                    </label>
                     <input
                       type="number"
                       value={formData.servings}
-                      onChange={(e) => setFormData({ ...formData, servings: parseInt(e.target.value) || 1 })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          servings: parseInt(e.target.value) || 1,
+                        })
+                      }
                       min="1"
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -387,22 +434,38 @@ export default function EditDishPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Base Calories</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Base Calories
+                    </label>
                     <input
                       type="number"
                       value={formData.base_calories}
-                      onChange={(e) => setFormData({ ...formData, base_calories: e.target.value === "" ? "" : Number(e.target.value) })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          base_calories:
+                            e.target.value === "" ? "" : Number(e.target.value),
+                        })
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Preparation Time (minutes)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Preparation Time (minutes)
+                  </label>
                   <input
                     type="number"
                     value={formData.preparation_time}
-                    onChange={(e) => setFormData({ ...formData, preparation_time: e.target.value === "" ? "" : Number(e.target.value) })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        preparation_time:
+                          e.target.value === "" ? "" : Number(e.target.value),
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -412,10 +475,18 @@ export default function EditDishPage() {
                     type="checkbox"
                     id="is_customizable"
                     checked={formData.is_customizable}
-                    onChange={(e) => setFormData({ ...formData, is_customizable: e.target.checked })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        is_customizable: e.target.checked,
+                      })
+                    }
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
-                  <label htmlFor="is_customizable" className="ml-2 block text-sm text-gray-900">
+                  <label
+                    htmlFor="is_customizable"
+                    className="ml-2 block text-sm text-gray-900"
+                  >
                     Allow customization
                   </label>
                 </div>
@@ -435,21 +506,31 @@ export default function EditDishPage() {
 
           {/* Ingredients Management */}
           <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Ingredients</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">
+              Ingredients
+            </h2>
 
             {/* Current Ingredients */}
             <div className="mb-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Current Ingredients</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Current Ingredients
+              </h3>
               {ingredients.length === 0 ? (
                 <p className="text-gray-500 italic">No ingredients added yet</p>
               ) : (
                 <div className="space-y-2">
                   {ingredients.map((ingredient) => (
-                    <div key={ingredient.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                    <div
+                      key={ingredient.id}
+                      className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
+                    >
                       <div className="flex-1">
-                        <span className="font-medium">{ingredient.ingredient_name}</span>
+                        <span className="font-medium">
+                          {ingredient.ingredient_name}
+                        </span>
                         <span className="text-gray-600 ml-2">
-                          {ingredient.quantity} {ingredient.unit_abbreviation || ingredient.unit_name}
+                          {ingredient.quantity}{" "}
+                          {ingredient.unit_abbreviation || ingredient.unit_name}
                         </span>
                         {ingredient.is_optional && (
                           <span className="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
@@ -458,11 +539,23 @@ export default function EditDishPage() {
                         )}
                       </div>
                       <button
-                        onClick={() => removeIngredient(ingredient.ingredient_id)}
+                        onClick={() =>
+                          removeIngredient(ingredient.ingredient_id)
+                        }
                         className="text-red-600 hover:text-red-800 ml-2"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
                         </svg>
                       </button>
                     </div>
@@ -473,14 +566,24 @@ export default function EditDishPage() {
 
             {/* Add New Ingredient */}
             <div className="border-t border-gray-200 pt-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Add Ingredient</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Add Ingredient
+              </h3>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Ingredient</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Ingredient
+                  </label>
                   <select
                     value={newIngredient.ingredient_id}
-                    onChange={(e) => setNewIngredient({ ...newIngredient, ingredient_id: e.target.value === "" ? "" : Number(e.target.value) })}
+                    onChange={(e) =>
+                      setNewIngredient({
+                        ...newIngredient,
+                        ingredient_id:
+                          e.target.value === "" ? "" : Number(e.target.value),
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select ingredient</option>
@@ -494,21 +597,37 @@ export default function EditDishPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Quantity
+                    </label>
                     <input
                       type="number"
                       step="0.1"
                       value={newIngredient.quantity}
-                      onChange={(e) => setNewIngredient({ ...newIngredient, quantity: e.target.value === "" ? "" : Number(e.target.value) })}
+                      onChange={(e) =>
+                        setNewIngredient({
+                          ...newIngredient,
+                          quantity:
+                            e.target.value === "" ? "" : Number(e.target.value),
+                        })
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Unit
+                    </label>
                     <select
                       value={newIngredient.unit_id}
-                      onChange={(e) => setNewIngredient({ ...newIngredient, unit_id: e.target.value === "" ? "" : Number(e.target.value) })}
+                      onChange={(e) =>
+                        setNewIngredient({
+                          ...newIngredient,
+                          unit_id:
+                            e.target.value === "" ? "" : Number(e.target.value),
+                        })
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Select unit</option>
@@ -526,10 +645,18 @@ export default function EditDishPage() {
                     type="checkbox"
                     id="is_optional_ingredient"
                     checked={newIngredient.is_optional}
-                    onChange={(e) => setNewIngredient({ ...newIngredient, is_optional: e.target.checked })}
+                    onChange={(e) =>
+                      setNewIngredient({
+                        ...newIngredient,
+                        is_optional: e.target.checked,
+                      })
+                    }
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
-                  <label htmlFor="is_optional_ingredient" className="ml-2 block text-sm text-gray-900">
+                  <label
+                    htmlFor="is_optional_ingredient"
+                    className="ml-2 block text-sm text-gray-900"
+                  >
                     Optional ingredient
                   </label>
                 </div>

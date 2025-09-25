@@ -47,7 +47,7 @@ export default function AdminCategoriesPage() {
       } else {
         setError(data.error || "Failed to load categories");
       }
-    } catch (err) {
+    } catch {
       setError("Failed to load categories");
     } finally {
       setLoading(false);
@@ -110,7 +110,7 @@ export default function AdminCategoriesPage() {
       } else {
         setError(data.error || "Failed to save category");
       }
-    } catch (err) {
+    } catch {
       setError("Failed to save category");
     } finally {
       setIsSubmitting(false);
@@ -133,7 +133,7 @@ export default function AdminCategoriesPage() {
         const data = await response.json();
         setError(data.error || "Failed to delete category");
       }
-    } catch (err) {
+    } catch {
       setError("Failed to delete category");
     } finally {
       setIsSubmitting(false);
@@ -447,7 +447,7 @@ export default function AdminCategoriesPage() {
               <div className="mb-6">
                 <p className="text-gray-700 mb-2">
                   Are you sure you want to delete{" "}
-                  <strong>"{selectedCategory.name}"</strong>?
+                  <strong>&ldquo;{selectedCategory.name}&rdquo;</strong>?
                 </p>
                 {selectedCategory.dish_count > 0 && (
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">

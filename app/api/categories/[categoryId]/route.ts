@@ -8,7 +8,7 @@ interface UpdateCategoryData {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { categoryId: string } }
+  { params }: { params: { categoryId: string } },
 ) {
   try {
     const categoryId = parseInt(params.categoryId);
@@ -16,7 +16,7 @@ export async function GET(
     if (isNaN(categoryId)) {
       return NextResponse.json(
         { error: "Invalid category ID" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -26,13 +26,13 @@ export async function GET(
        LEFT JOIN dishes d ON c.id = d.category_id
        WHERE c.id = $1
        GROUP BY c.id, c.name, c.display_order, c.created_at`,
-      [categoryId]
+      [categoryId],
     );
 
     if (result.rows.length === 0) {
       return NextResponse.json(
         { error: "Category not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -43,14 +43,14 @@ export async function GET(
     console.error("Error fetching category:", error);
     return NextResponse.json(
       { error: "Failed to fetch category" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { categoryId: string } }
+  { params }: { params: { categoryId: string } },
 ) {
   try {
     const categoryId = parseInt(params.categoryId);
@@ -59,7 +59,7 @@ export async function PUT(
     if (isNaN(categoryId)) {
       return NextResponse.json(
         { error: "Invalid category ID" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -68,19 +68,19 @@ export async function PUT(
     // Check if category exists
     const existingResult = await query(
       "SELECT id FROM categories WHERE id = $1",
-      [categoryId]
+      [categoryId],
     );
 
     if (existingResult.rows.length === 0) {
       return NextResponse.json(
         { error: "Category not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     // Build dynamic update query
-    const updates = [];
-    const params: any[] = [];
+    const updates: string[] = [];
+    const params: (string | number)[] = [];
     let paramCount = 0;
 
     if (name !== undefined) {
@@ -98,7 +98,7 @@ export async function PUT(
     if (updates.length === 0) {
       return NextResponse.json(
         { error: "No fields to update" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -107,7 +107,7 @@ export async function PUT(
 
     const result = await query(
       `UPDATE categories SET ${updates.join(", ")} WHERE id = $${paramCount} RETURNING *`,
-      params
+      params,
     );
 
     const category = result.rows[0];
@@ -117,14 +117,14 @@ export async function PUT(
     console.error("Error updating category:", error);
     return NextResponse.json(
       { error: "Failed to update category" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { categoryId: string } }
+  { params }: { params: { categoryId: string } },
 ) {
   try {
     const categoryId = parseInt(params.categoryId);
@@ -132,27 +132,27 @@ export async function DELETE(
     if (isNaN(categoryId)) {
       return NextResponse.json(
         { error: "Invalid category ID" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Check if category exists
     const existingResult = await query(
       "SELECT id FROM categories WHERE id = $1",
-      [categoryId]
+      [categoryId],
     );
 
     if (existingResult.rows.length === 0) {
       return NextResponse.json(
         { error: "Category not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     // Check if category has dishes
     const dishCheck = await query(
       "SELECT COUNT(*) as dish_count FROM dishes WHERE category_id = $1",
-      [categoryId]
+      [categoryId],
     );
 
     const dishCount = parseInt(dishCheck.rows[0].dish_count);
@@ -160,9 +160,9 @@ export async function DELETE(
     if (dishCount > 0) {
       return NextResponse.json(
         {
-          error: `Cannot delete category. It contains ${dishCount} dish${dishCount !== 1 ? 'es' : ''}. Please move or delete the dishes first.`
+          error: `Cannot delete category. It contains ${dishCount} dish${dishCount !== 1 ? "es" : ""}. Please move or delete the dishes first.`,
         },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -170,13 +170,13 @@ export async function DELETE(
     await query("DELETE FROM categories WHERE id = $1", [categoryId]);
 
     return NextResponse.json({
-      message: "Category deleted successfully"
+      message: "Category deleted successfully",
     });
   } catch (error) {
     console.error("Error deleting category:", error);
     return NextResponse.json(
       { error: "Failed to delete category" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
