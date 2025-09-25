@@ -27,7 +27,7 @@ export default function AdminDishesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Modal states
+  // Modal states (only delete modal)
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedDish, setSelectedDish] = useState<Dish | null>(null);
 
@@ -38,17 +38,6 @@ export default function AdminDishesPage() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-
-  // Form data for create/edit
-  const [formData, setFormData] = useState({
-    name: "",
-    cooking_steps: "",
-    category_id: "" as number | "",
-    base_calories: "" as number | "",
-    preparation_time: "" as number | "",
-    servings: 1,
-    is_customizable: false,
-  });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -88,78 +77,14 @@ export default function AdminDishesPage() {
     }
   };
 
-  const handleCreateDish = () => {
-    setFormData({
-      name: "",
-      cooking_steps: "",
-      category_id: "",
-      base_calories: "",
-      preparation_time: "",
-      servings: 1,
-      is_customizable: false,
-    });
-    setShowCreateModal(true);
-  };
-
   const handleEditDish = (dish: Dish) => {
-    setFormData({
-      name: dish.name,
-      cooking_steps: dish.cooking_steps || "",
-      category_id: dish.category_id || "",
-      base_calories: dish.base_calories || "",
-      preparation_time: dish.preparation_time || "",
-      servings: dish.servings,
-      is_customizable: dish.is_customizable,
-    });
-    setSelectedDish(dish);
-    setShowEditModal(true);
+    // Navigate to edit page
+    window.location.href = `/admin/dishes/${dish.id}/edit`;
   };
 
   const handleDeleteDish = (dish: Dish) => {
     setSelectedDish(dish);
     setShowDeleteModal(true);
-  };
-
-  const submitForm = async () => {
-    setIsSubmitting(true);
-    try {
-      const url = showEditModal
-        ? `/api/dishes/${selectedDish?.id}`
-        : "/api/dishes";
-      const method = showEditModal ? "PUT" : "POST";
-
-      const payload = {
-        name: formData.name,
-        cooking_steps: formData.cooking_steps || null,
-        category_id: formData.category_id || null,
-        base_calories: formData.base_calories || null,
-        preparation_time: formData.preparation_time || null,
-        servings: formData.servings,
-        is_customizable: formData.is_customizable,
-        ingredients: [], // We'll handle ingredients separately for now
-      };
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        await loadDishes();
-        closeModals();
-      } else {
-        setError(data.error || "Failed to save dish");
-      }
-    } catch (err) {
-      setError("Failed to save dish");
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   const confirmDelete = async () => {
@@ -186,8 +111,6 @@ export default function AdminDishesPage() {
   };
 
   const closeModals = () => {
-    setShowCreateModal(false);
-    setShowEditModal(false);
     setShowDeleteModal(false);
     setSelectedDish(null);
     setError(null);
@@ -225,8 +148,8 @@ export default function AdminDishesPage() {
             </p>
           </div>
           <div className="flex space-x-4">
-            <button
-              onClick={handleCreateDish}
+            <Link
+              href="/admin/dishes/create"
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
             >
               <svg
@@ -243,7 +166,7 @@ export default function AdminDishesPage() {
                 />
               </svg>
               <span>Create Dish</span>
-            </button>
+            </Link>
             <Link
               href="/admin"
               className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
@@ -447,205 +370,6 @@ export default function AdminDishesPage() {
           )}
         </div>
       </div>
-
-      {/* Create/Edit Modal */}
-      {(showCreateModal || showEditModal) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">
-                  {showCreateModal ? "Create New Dish" : "Edit Dish"}
-                </h3>
-                <button
-                  onClick={closeModals}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  submitForm();
-                }}
-              >
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, name: e.target.value })
-                      }
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Category
-                    </label>
-                    <select
-                      value={formData.category_id}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          category_id:
-                            e.target.value === "" ? "" : Number(e.target.value),
-                        })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Select category</option>
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Cooking Steps
-                    </label>
-                    <textarea
-                      value={formData.cooking_steps}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          cooking_steps: e.target.value,
-                        })
-                      }
-                      rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Servings *
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.servings}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            servings: parseInt(e.target.value) || 1,
-                          })
-                        }
-                        min="1"
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Base Calories
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.base_calories}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            base_calories:
-                              e.target.value === ""
-                                ? ""
-                                : Number(e.target.value),
-                          })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Preparation Time (minutes)
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.preparation_time}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          preparation_time:
-                            e.target.value === "" ? "" : Number(e.target.value),
-                        })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="is_customizable"
-                      checked={formData.is_customizable}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          is_customizable: e.target.checked,
-                        })
-                      }
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label
-                      htmlFor="is_customizable"
-                      className="ml-2 block text-sm text-gray-900"
-                    >
-                      Allow customization
-                    </label>
-                  </div>
-                </div>
-
-                <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200">
-                  <button
-                    type="button"
-                    onClick={closeModals}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50"
-                  >
-                    {isSubmitting
-                      ? "Saving..."
-                      : showCreateModal
-                        ? "Create"
-                        : "Update"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && selectedDish && (
