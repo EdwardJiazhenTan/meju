@@ -82,8 +82,9 @@ export default function MenuPage() {
     return ingredients
       .map((ing) => {
         const unit = ing.unit_abbreviation || ing.unit_name;
+        const numQuantity = Number(ing.quantity) || 0;
         const quantity =
-          ing.quantity % 1 === 0 ? ing.quantity : ing.quantity.toFixed(1);
+          numQuantity % 1 === 0 ? numQuantity : numQuantity.toFixed(1);
         const optional = ing.is_optional ? " (optional)" : "";
         return `${ing.ingredient_name} ${quantity}${unit}${optional}`;
       })
