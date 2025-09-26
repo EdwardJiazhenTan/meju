@@ -1,91 +1,90 @@
-# Meal Planner 🍽️
+# Meju
 
-A Next.js-based family meal planning system with customizable dishes and automatic shopping lists.
+Fullstack restaurant order management system built with Next.js and PostgreSQL.
+
+![Demo Website](assets/demo.png)
+
+## Demo
+
+Live admin panel: https://www.meju.app/admin
 
 ## Features
 
-- **Calendar View**: Weekly meal planning with multiple meals per day
-- **Dish Customization**: Ingredient substitution and quantity adjustments
-- **Auto Shopping Lists**: Weekly ingredient calculation
-- **Nutrition Tracking**: Calorie information per dish and meal
-- **Cooking Instructions**: Detailed preparation steps
+- Fullstack order system with admin panel
+- Menu management with categories and ingredients
+- Real-time order tracking
+- Easy deployment with Vercel and Neon
+- Completely free to host
 
-## Tech Stack
-
-- **Frontend**: Next.js 15 + TypeScript + Tailwind CSS
-- **Database**: PostgreSQL (Docker) with JSONB support
-- **Query**: Native pg client
-
-## Quick Start
-
-### Prerequisites
-- Node.js 18+
-- Docker Desktop
-
-### Setup
+## Local Development
 
 ```bash
-# Clone and install
+# Clone project
 git clone <repository-url>
-cd meal-planner
+cd meju
 npm install
 
-# Start PostgreSQL
-docker run --name meal-planner-db \
-  -e POSTGRES_DB=meal_planner \
-  -e POSTGRES_USER=admin \
-  -e POSTGRES_PASSWORD=password \
-  -p 5432:5432 \
-  -d postgres:15
+# Start PostgreSQL database
+npm run start-db
 
 # Initialize database
 npm run init-db
 
-# Start development
+# Start development server
 npm run dev
 ```
 
 Visit http://localhost:3000
 
+## Production Hosting
+
+### Database Setup (Neon)
+
+1. Create account at [neon.tech](https://neon.tech)
+2. Create new PostgreSQL database
+3. Install Neon CLI:
+   ```bash
+   npm install -g neonctl
+   ```
+4. Copy database connection string from Neon dashboard
+
+### Deploy to Vercel
+
+```bash
+# Install Vercel CLI
+npm install -g vercel
+
+# Deploy to production
+vercel --prod
+```
+
+During deployment, add your Neon database URL as environment variable in Vercel dashboard.
+
+### Migrate Local Data to Cloud
+
+If you need to transfer local database to Neon:
+
+```bash
+# Export local data
+pg_dump -h localhost -U admin meal_planner > backup.sql
+
+# Import to Neon (replace with your connection string)
+psql "postgresql://user:pass@host/db" < backup.sql
+```
+
 ## Commands
 
 ```bash
-# Development
-npm run dev              # Start dev server
-npm run build            # Build for production
-
-# Database
-npm run start-db         # Start database container
-npm run stop-db          # Stop database container
-npm run init-db          # Initialize database tables
-npm run reset-db         # Reset database (clear all data)
+npm run dev          # Development server
+npm run build        # Production build
+npm run start-db     # Start local PostgreSQL
+npm run init-db      # Initialize database tables
 ```
 
-## Database Schema
+## Tech Stack
 
-### Core Tables
-- **categories** - Dish categories (salad, meat, staple, etc.)
-- **dishes** - Dish information (name, steps, calories)
-- **ingredients** - Ingredient library with units and calories
-- **meal_plans** - Date + meal name planning
-- **meal_items** - Selected dishes with JSONB customizations
-
-### Key Features
-- **JSONB customizations** - Flexible dish modifications
-- **automatic shopping list** - Via `weekly_shopping_list` view
-- **nutrition calculation** - Base + custom ingredient calories
-
-## Troubleshooting
-
-```bash
-# Docker issues
-docker ps                # Check containers
-docker logs meal-planner-db  # View logs
-
-# Database connection
-docker exec -it meal-planner-db psql -U admin -d meal_planner
-```
-
-## License
-
-MIT
+- Next.js 15 + TypeScript
+- PostgreSQL with Docker
+- Tailwind CSS
+- Vercel (hosting)
+- Neon (serverless PostgreSQL)
