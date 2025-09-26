@@ -6,7 +6,7 @@ Fullstack restaurant order management system built with Next.js and PostgreSQL.
 
 ## Demo
 
-Live admin panel: https://www.meju.app/admin
+Live demo: https://www.meju.app/
 
 ## Features
 
